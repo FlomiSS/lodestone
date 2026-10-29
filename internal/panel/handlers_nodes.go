@@ -24,6 +24,8 @@ type nodeDTO struct {
 	Version     string `json:"version,omitempty"`
 	// MemoryAvailable ist der freie Arbeitsspeicher der Maschine in Bytes.
 	MemoryAvailable int64 `json:"memoryAvailable,omitempty"`
+	// MemoryCommitted ist der Arbeitsspeicher, den die laufenden Server auf dem Node als Limit haben (Bytes).
+	MemoryCommitted int64 `json:"memoryCommitted,omitempty"`
 }
 
 func (p *Panel) listNodes(w http.ResponseWriter, r *http.Request) {
@@ -57,6 +59,13 @@ func (p *Panel) listNodes(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			result[i].Online, result[i].System, result[i].Version, result[i].MemoryAvailable = true, system.Docker, system.Version, system.MemoryAvailable
+			if views, err := p.nodeViews(ctx, n.ID); err == nil {
+				for _, view := range views {
+					if activeState(view.State) {
+						result[i].MemoryCommitted += int64(view.MemoryMB) << 20
+					}
+				}
+			}
 			if system.Error != "" {
 				result[i].Online, result[i].Error = false, "Docker: "+system.Error
 			}

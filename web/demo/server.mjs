@@ -29,6 +29,7 @@ const nodes = [
   {
     id: "n1", name: "home", url: "http://node:8480", publicHost: "mc.example.org", online: true, version: "0.1.0", serverCount: 6,
     system: { dockerVersion: "29.6.2", os: "Ubuntu 24.04.4 LTS", architecture: "x86_64", cpus: 8, memoryBytes: 16 * 1024 ** 3 },
+    memoryAvailable: 5.2 * 1024 ** 3, memoryCommitted: 9.5 * 1024 ** 3,
   },
   { id: "n2", name: "hetzner-1", url: "https://node.example.com:8480", publicHost: "mc2.example.org", online: false, serverCount: 0, error: "der Node ist nicht erreichbar (hetzner-1): connection refused" },
 ];
@@ -104,6 +105,13 @@ const projects = [
     groups: [],
   },
 ];
+
+projects[0].settings = { statusPublic: true, statusSlug: "survival-netz", motd: "<gradient:#09add3:#22c55e>Survival-Netz</gradient>\n<gray>Neu: Voicechat!" };
+projects[1].settings = { statusPublic: false, statusSlug: "", motd: "" };
+projects[0].servers.forEach((server) => { server.autoRestart = server.role !== "proxy"; });
+projects[1].servers.forEach((server) => { server.autoRestart = false; });
+projects[0].servers[4].modpack = { projectId: "P7dR8mSH", slug: "fabulously-optimized", title: "Fabulously Optimized", versionId: "v9", versionNumber: "10.0.0", minecraft: "1.21.4" };
+projects[0].servers[3].publicAddress = "survival.playit.gg";
 
 const findServer = (sid) => {
   for (const project of projects) {
@@ -216,6 +224,44 @@ function readBody(req) {
   });
 }
 
+
+// ---------------------------------------------------------------- Neue Bereiche (Zeitpläne, Ereignisse, Protokoll ...)
+
+let schedules = [
+  { id: "sc1", projectId: "p1", serverId: survivalId, serverName: "Survival", name: "Nächtlicher Neustart", steps: [{ action: "backup" }, { action: "restart" }], kind: "daily", everyMinutes: 0, atMinute: 4 * 60, weekdays: 127, warnMinutes: 5, enabled: true, lastRun: now() - 8 * HOUR, lastStatus: "ok", lastMessage: "2 Schritte ausgeführt", nextRun: now() + 16 * HOUR },
+  { id: "sc2", projectId: "p1", serverId: lobby1Id, serverName: "Lobby-1", name: "Hinweis zur vollen Stunde", steps: [{ action: "command", value: "say Vergiss nicht, abzustimmen!" }], kind: "interval", everyMinutes: 60, atMinute: 0, weekdays: 127, warnMinutes: 0, enabled: true, lastRun: now() - 25 * MIN, lastStatus: "ok", lastMessage: "1 Schritt ausgeführt", nextRun: now() + 35 * MIN },
+  { id: "sc3", projectId: "p1", serverId: survivalId, serverName: "Survival", name: "Wochenend-Backup", steps: [{ action: "backup" }], kind: "weekly", everyMinutes: 0, atMinute: 3 * 60, weekdays: 0b1100000, warnMinutes: 0, enabled: false, lastRun: 0, lastStatus: "", lastMessage: "", nextRun: 0 },
+];
+const events = [
+  { id: 9, time: now() - 6 * MIN, serverId: survivalId, kind: "backup", level: "info", message: "Backup von „Survival“ ist fertig (208 MB)" },
+  { id: 8, time: now() - 2 * HOUR, serverId: lobby2Id, kind: "start", level: "info", message: "„Lobby-2“ wurde gestartet" },
+  { id: 7, time: now() - 5 * HOUR, serverId: survivalId, kind: "crash", level: "error", message: "„Survival“ ist abgestürzt (Exit-Code 137). Auto-Restart startet den Server neu." },
+  { id: 6, time: now() - 5 * HOUR + 40_000, serverId: survivalId, kind: "restart", level: "warn", message: "„Survival“ wird automatisch neu gestartet (Versuch 1 von 3)" },
+  { id: 5, time: now() - 9 * HOUR, kind: "lowmemory", level: "warn", message: "Auf dem Node „home“ sind nur noch 1380 MB Arbeitsspeicher frei." },
+  { id: 4, time: now() - 26 * HOUR, kind: "schedule", level: "info", message: "Zeitplan „Nächtlicher Neustart“ ist durchgelaufen" },
+];
+let webhooks = [
+  { id: "w1", name: "Discord #server", url: "https://discord.com/api/webhooks/…/•••", kind: "discord", events: ["crash", "restart", "lowmemory"], enabled: true, lastStatus: "ok" },
+];
+const audit = [
+  ["POST /servers/{id}/power", "Survival", 200, 2], ["PUT /projects/{id}/motd", "Survival-Netz", 200, 40], ["POST /projects/{id}/schedules", "Survival-Netz", 201, 130],
+  ["POST /me/keys", "", 201, 300], ["POST /projects/{id}/servers", "Survival-Netz", 201, 700], ["PATCH /users/{id}", "anna", 200, 1500], ["POST /auth/login", "", 200, 2200],
+].map(([action, target, status, minutes], index) => ({ id: 100 - index, time: now() - minutes * MIN, userId: "u1", username: index % 3 === 2 ? "anna" : "admin", action, target, status, ip: index % 2 ? "192.168.1.20" : "203.0.113.7" }));
+let keys = [{ id: "k1", name: "Skript Backup", prefix: "lds_8fK3", createdAt: now() - 6 * 24 * HOUR, lastUsed: now() - 3 * HOUR, expiresAt: 0 }];
+const sessions = [
+  { id: "s1", createdAt: now() - 2 * HOUR, expiresAt: now() + 29 * 24 * HOUR, userAgent: "Mozilla/5.0 (Windows NT 10.0) Chrome/130", ip: "192.168.1.20", current: true },
+  { id: "s2", createdAt: now() - 4 * 24 * HOUR, expiresAt: now() + 26 * 24 * HOUR, userAgent: "Mozilla/5.0 (iPhone) Safari/604", ip: "203.0.113.7", current: false },
+];
+let totpEnabled = false;
+const me = () => ({ ...user, totpEnabled, recoveryCodes: totpEnabled ? 8 : 0 });
+const playerLists = {
+  whitelist: [{ uuid: "1", name: "Alex" }, { uuid: "2", name: "Luna" }, { uuid: "3", name: "Mika" }],
+  ops: [{ uuid: "1", name: "Alex", level: 4 }],
+  banned: [{ uuid: "9", name: "Griefer99", reason: "Griefing", created: "2026-10-20" }],
+  bannedIps: [{ ip: "198.51.100.23", reason: "Spam" }],
+};
+let playit = { configured: false, running: false, image: "ghcr.io/playit-cloud/playit-agent:0.15", logs: [] };
+
 const synced = { applied: ["Proxy", "Lobby-1", "Lobby-2", "Survival"], pending: [], failed: [] };
 
 async function api(req, res, url) {
@@ -225,12 +271,61 @@ async function api(req, res, url) {
   const [a, b, c, d] = parts;
 
   if (a === "auth") {
-    if (b === "status") return send(res, 200, { setupRequired: false, version: "0.1.0-demo", user });
+    if (b === "status") return send(res, 200, { setupRequired: false, version: "0.1.0-demo", user, timezone: "Europe/Berlin" });
+    if (b === "totp") return send(res, 200, user);
     if (b === "logout") return send(res, 204);
     return send(res, 200, user);
   }
-  if (a === "me") return send(res, 204);
+  if (a === "me") {
+    if (!b) return send(res, 200, me());
+    if (b === "password") return send(res, 204);
+    if (b === "keys") {
+      if (method === "POST") {
+        const key = { id: id(), name: body.name || "Schlüssel", prefix: "lds_Demo", createdAt: now(), lastUsed: 0, expiresAt: body.days ? now() + body.days * 24 * HOUR : 0 };
+        keys.push(key);
+        return send(res, 201, { ...key, key: "lds_DemoSchluesselNurImDemoGueltig0123456789" });
+      }
+      if (c) { keys = keys.filter((key) => key.id !== c); return send(res, 204); }
+      return send(res, 200, keys);
+    }
+    if (b === "sessions") return send(res, c ? 204 : 200, c ? undefined : sessions);
+    if (b === "totp") {
+      if (c === "setup") return send(res, 200, { secret: "JBSWY3DPEHPK3PXP", uri: "otpauth://totp/Lodestone:admin?secret=JBSWY3DPEHPK3PXP&issuer=Lodestone" });
+      if (c === "enable") { totpEnabled = true; return send(res, 200, { recoveryCodes: ["a1b2-c3d4", "e5f6-a7b8", "c9d0-e1f2", "a3b4-c5d6", "e7f8-a9b0", "c1d2-e3f4", "a5b6-c7d8", "e9f0-a1b2"] }); }
+      if (c === "disable") { totpEnabled = false; return send(res, 204); }
+    }
+    return send(res, 204);
+  }
+  if (a === "audit") {
+    const who = url.searchParams.get("user");
+    return send(res, 200, audit.filter((entry) => !who || entry.username.includes(who)));
+  }
+  if (a === "public" && b === "status") {
+    if (c !== "survival-netz") return send(res, 404, { error: "nicht gefunden" });
+    return send(res, 200, { name: "Survival-Netz", description: "Hauptnetzwerk mit Lobby, Survival und Creative", online: true, address: "mc.example.org:28000", players: players("proxy", now(), 38), maxPlayers: 500, version: "Velocity 3.5.1", servers: [{ name: "Lobby", online: true, players: 12, maxPlayers: 40 }, { name: "Survival", online: true, players: 9, maxPlayers: 20 }, { name: "Creative", online: false, players: 0 }], updated: now() });
+  }
+  if (a === "schedules") {
+    const schedule = schedules.find((entry) => entry.id === b);
+    if (!schedule) return send(res, 404, { error: "nicht gefunden" });
+    if (method === "DELETE") { schedules = schedules.filter((entry) => entry !== schedule); return send(res, 204); }
+    if (c === "run") { schedule.lastRun = now(); schedule.lastStatus = "ok"; schedule.lastMessage = "von Hand ausgeführt"; return send(res, 200, schedule); }
+    Object.assign(schedule, body);
+    return send(res, 200, schedule);
+  }
+  if (a === "webhooks") {
+    const hook = webhooks.find((entry) => entry.id === b);
+    if (!hook) return send(res, 404, { error: "nicht gefunden" });
+    if (method === "DELETE") { webhooks = webhooks.filter((entry) => entry !== hook); return send(res, 204); }
+    if (c === "test") return send(res, 200, { ok: true, status: "204 No Content" });
+    Object.assign(hook, body);
+    return send(res, 200, hook);
+  }
   if (a === "users") return send(res, method === "GET" ? 200 : 204, method === "GET" ? users : undefined);
+  if (a === "nodes" && c === "playit") {
+    if (method === "PUT") playit = { configured: true, running: true, image: playit.image, logs: ["[playit] agent started", "[playit] tunnel ready: survival.playit.gg"] };
+    else if (method === "DELETE") playit = { configured: false, running: false, image: playit.image, logs: [] };
+    return send(res, method === "GET" ? 200 : 202, playit);
+  }
   if (a === "nodes") return send(res, method === "GET" ? 200 : 201, method === "GET" ? nodes : nodes[0]);
   if (a === "software") {
     if (b && c === "versions") {
@@ -276,6 +371,25 @@ async function api(req, res, url) {
       setTimeout(() => { server.view.state = "offline"; }, 4000);
       return send(res, 201, server);
     }
+    if (c === "events") return send(res, 200, events);
+    if (c === "webhooks") {
+      if (method === "POST") { const hook = { id: id(), name: body.name, url: body.url, kind: body.kind, events: body.events ?? [], enabled: true, lastStatus: "" }; webhooks.push(hook); return send(res, 201, hook); }
+      return send(res, 200, webhooks);
+    }
+    if (c === "schedules") {
+      if (method === "POST") {
+        const target = project.servers.find((server) => server.id === body.serverId);
+        const schedule = { id: id(), projectId: project.id, serverName: target?.name ?? "", lastRun: 0, lastStatus: "", lastMessage: "", nextRun: now() + HOUR, enabled: true, everyMinutes: 0, atMinute: 0, weekdays: 127, warnMinutes: 0, ...body };
+        schedules.push(schedule);
+        return send(res, 201, schedule);
+      }
+      return send(res, 200, schedules.filter((entry) => entry.projectId === project.id));
+    }
+    if (c === "status") {
+      project.settings = { ...project.settings, statusPublic: !!body.public, statusSlug: body.slug || project.settings?.statusSlug || project.name.toLowerCase().replace(/[^a-z0-9]+/g, "-") };
+      return send(res, 200, project.settings);
+    }
+    if (c === "motd") { project.settings = { ...project.settings, motd: body.motd ?? "" }; return send(res, 200, synced); }
     if (c === "network") return send(res, 200, { ...synced, warnings: [] });
     if (c === "voicechat") {
       project.voicechat = !!body.enabled;
@@ -328,6 +442,27 @@ async function api(req, res, url) {
       return send(res, 202, server.view);
     }
     if (c === "command") return send(res, 204);
+    if (c === "auto-restart") { server.autoRestart = !!body.enabled; return send(res, 200, server); }
+    if (c === "public-address") { server.publicAddress = body.address || undefined; return send(res, 200, server); }
+    if (c === "reinstall") return send(res, 202, server.view);
+    if (c === "player-lists") return send(res, 200, playerLists);
+    if (c === "player-action") {
+      const name = body.name;
+      const edit = (list, add) => {
+        if (add && !list.some((entry) => entry.name === name)) list.push({ uuid: id(), name, reason: body.reason });
+        if (!add) list.splice(0, list.length, ...list.filter((entry) => entry.name !== name));
+      };
+      if (body.action === "whitelist-add") edit(playerLists.whitelist, true);
+      if (body.action === "whitelist-remove") edit(playerLists.whitelist, false);
+      if (body.action === "op") edit(playerLists.ops, true);
+      if (body.action === "deop") edit(playerLists.ops, false);
+      if (body.action === "ban") edit(playerLists.banned, true);
+      if (body.action === "pardon") edit(playerLists.banned, false);
+      if (body.action === "ban-ip") playerLists.bannedIps.push({ ip: name, reason: body.reason });
+      if (body.action === "pardon-ip") playerLists.bannedIps = playerLists.bannedIps.filter((entry) => entry.ip !== name);
+      return send(res, 200, { ok: true });
+    }
+    if (c === "modpack") return send(res, 200, { state: "done", done: 148, total: 148, name: "Fabulously Optimized", version: "10.0.0", minecraft: "1.21.4", loader: "fabric" });
     if (c === "logs") return send(res, 200, []);
     if (c === "metrics") {
       const range = url.searchParams.get("range") ?? "6h";
@@ -361,6 +496,12 @@ async function api(req, res, url) {
         { file: "Eigenbau.jar", dir: "plugins", name: "Eigenbau", current: "1.0", known: false, updateAvailable: false },
       ]);
       if (d === "update") return send(res, 200, [{ file: "LuckPerms-Bukkit-5.4.150.jar", updated: true, to: "5.5.0" }]);
+      if (d === "details") return send(res, 200, [
+        { file: "LuckPerms-Bukkit-5.4.150.jar", dir: "plugins", known: true, projectId: "Vebnzrzj", slug: "luckperms", title: "LuckPerms", description: "Ein Rechtesystem für Minecraft-Server.", projectType: "plugin", link: "https://modrinth.com/plugin/luckperms", downloads: 12_400_000, sourceUrl: "https://github.com/LuckPerms/LuckPerms", issuesUrl: "https://github.com/LuckPerms/LuckPerms/issues", license: "MIT", versionId: "v1", versionNumber: "5.4.150", versionName: "v5.4.150", versionType: "release", published: "2026-08-12T10:00:00Z" },
+        { file: "voicechat-bukkit-2.6.27.jar", dir: "plugins", known: true, projectId: "9eGKb6K1", slug: "simple-voice-chat", title: "Simple Voice Chat", description: "Proximity-Voicechat in Minecraft.", projectType: "plugin", link: "https://modrinth.com/plugin/simple-voice-chat", downloads: 25_000_000, license: "Custom", versionId: "v2", versionNumber: "2.6.27", versionName: "2.6.27", versionType: "release", published: "2026-09-30T10:00:00Z" },
+        { file: "Eigenbau.jar", dir: "plugins", known: false },
+      ]);
+      if (d === "switch") return send(res, 200, { file: "LuckPerms-Bukkit-5.5.0.jar", from: "5.4.150", to: body.versionId });
       return send(res, 200, [
         { file: "LuckPerms-Bukkit-5.4.150.jar", dir: "plugins", size: 1_600_000, modified: now() - 3 * 24 * HOUR, enabled: true, name: "LuckPerms", version: "5.4.150", kind: "paper", sha1: "a" },
         { file: "voicechat-bukkit-2.6.27.jar", dir: "plugins", size: 2_100_000, modified: now() - 2 * 24 * HOUR, enabled: true, name: "Simple Voice Chat", version: "2.6.27", kind: "paper", sha1: "b" },

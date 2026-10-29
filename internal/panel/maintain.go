@@ -9,6 +9,8 @@ import (
 func (p *Panel) Maintain(ctx context.Context) {
 	go p.sampleLoop(ctx)
 	go p.scaleLoop(ctx)
+	go p.watchLoop(ctx)
+	go p.scheduleLoop(ctx)
 	ticker := time.NewTicker(time.Hour)
 	defer ticker.Stop()
 	for {

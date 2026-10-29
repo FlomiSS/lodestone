@@ -2,7 +2,7 @@
 
 import { Cable, Cpu, Pencil, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
-import { Badge, Button, Card, Dot, EmptyState, PageHeader } from "@/components/ui/primitives";
+import { Badge, Button, Card, Dot, EmptyState, Meter, PageHeader } from "@/components/ui/primitives";
 import { ConfirmDialog, Dialog, useToast } from "@/components/ui/feedback";
 import { ErrorState, Loading } from "@/components/ui/async";
 import { useUser } from "@/components/layout/shell";
@@ -75,6 +75,7 @@ export default function NodesPage() {
               ) : (
                 node.error && <p className="mt-4 rounded-md border border-bad/25 bg-bad/10 px-3 py-2 text-xs text-bad">{node.error}</p>
               )}
+              {node.online && node.system && <MemoryPlanner node={node} />}
               {user.isAdmin && node.online && <PlayitCard node={node} />}
               {user.isAdmin && (
                 <div className="mt-4 flex items-center justify-between gap-2 border-t border-white/[0.06] pt-3">
@@ -108,6 +109,40 @@ export default function NodesPage() {
         }}
       />
     </>
+  );
+}
+
+/** Zeigt, wie viel Arbeitsspeicher die Server zusagen (Limits) und wie viel der Node tatsächlich noch frei hat. */
+function MemoryPlanner({ node }: { node: NodeInfo }) {
+  const total = node.system?.memoryBytes ?? 0;
+  const committed = node.memoryCommitted ?? 0;
+  const available = node.memoryAvailable ?? 0;
+  if (!total) return null;
+  const used = Math.max(0, total - available);
+  const committedPercent = (committed / total) * 100;
+  const usedPercent = (used / total) * 100;
+  return (
+    <div className="mt-4 space-y-3 border-t border-white/[0.06] pt-3">
+      <div>
+        <div className="mb-1.5 flex justify-between text-[11px] text-muted">
+          <span>Zugesagt (Limits laufender Server)</span>
+          <span className="tabular-nums text-ink/80">
+            {bytes(committed)} von {bytes(total)}
+          </span>
+        </div>
+        <Meter value={committedPercent} max={100} tone={committedPercent > 100 ? "bad" : committedPercent > 85 ? "warn" : "good"} />
+      </div>
+      <div>
+        <div className="mb-1.5 flex justify-between text-[11px] text-muted">
+          <span>Tatsächlich belegt</span>
+          <span className="tabular-nums text-ink/80">
+            {bytes(used)} · {bytes(available)} frei
+          </span>
+        </div>
+        <Meter value={usedPercent} max={100} tone={usedPercent > 90 ? "bad" : usedPercent > 75 ? "warn" : "good"} />
+      </div>
+      {committedPercent > 100 && <p className="text-[11px] text-warn">Die Limits überschreiten den Speicher des Nodes. Das geht gut, solange nicht alle Server voll ausgelastet sind.</p>}
+    </div>
   );
 }
 

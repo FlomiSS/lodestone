@@ -275,3 +275,49 @@ type brokenRuntime struct{ *fakeRuntime }
 func (b *brokenRuntime) EnsureImage(_ context.Context, _ string) error {
 	return errors.New("Cannot connect to the Docker daemon")
 }
+
+func TestLastExitTellsCrashFromRequestedStop(t *testing.T) {
+	rt := newFakeRuntime()
+	manager := newTestManager(t, testConfig(t), rt)
+	server := createPaper(t, manager, "Absturz")
+	if server.View().LastExit != nil {
+		t.Fatal("vor dem ersten Lauf gibt es kein Ende")
+	}
+
+	// Ein Absturz: der Prozess endet von allein mit Code 1
+	_ = server.Start()
+	waitState(t, server, StateRunning)
+	rt.mu.Lock()
+	crashed := rt.containers["c1"]
+	rt.mu.Unlock()
+	rt.finish(crashed, 1)
+	waitState(t, server, StateOffline)
+	exit := server.View().LastExit
+	if exit == nil || exit.Code != 1 || exit.Requested || exit.At == 0 {
+		t.Fatalf("Absturz: %+v", exit)
+	}
+
+	// Ein verlangter Stopp ist kein Absturz, auch wenn der Prozess hart beendet werden musste (Code 137)
+	rt.ignoreStop = true
+	_ = server.Start()
+	waitState(t, server, StateRunning)
+	if err := server.Stop(); err != nil {
+		t.Fatal(err)
+	}
+	waitState(t, server, StateOffline)
+	if exit := server.View().LastExit; exit == nil || exit.Code != 137 || !exit.Requested {
+		t.Fatalf("Stopp: %+v", exit)
+	}
+
+	// Kill über die Schnittstelle zählt ebenfalls als verlangt
+	rt.ignoreStop = false
+	_ = server.Start()
+	waitState(t, server, StateRunning)
+	if err := server.Kill(); err != nil {
+		t.Fatal(err)
+	}
+	waitState(t, server, StateOffline)
+	if exit := server.View().LastExit; exit == nil || !exit.Requested {
+		t.Fatalf("Kill: %+v", exit)
+	}
+}

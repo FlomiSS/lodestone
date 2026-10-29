@@ -1,14 +1,22 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { Package } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { FileArchive, Package } from "lucide-react";
 import { Button, Checkbox, SearchInput, Switch, Tabs } from "@/components/ui/primitives";
 import { Dialog, useToast } from "@/components/ui/feedback";
-import { api, useApi } from "@/lib/api";
+import { api, upload, useApi } from "@/lib/api";
 import { compact, megabytes } from "@/lib/format";
 import type { ModpackVersion, ModrinthHit, NodeInfo, Project, Server, SoftwareInfo } from "@/lib/types";
 
 const memoryOptions = [256, 512, 1024, 2048, 3072, 4096, 6144, 8192, 12288, 16384];
+
+/** Vorlagen setzen Name, Software und Speicher, damit man für die üblichen Fälle nichts nachdenken muss. */
+const templates = [
+  { id: "survival", label: "Survival", software: "paper", memory: 4096, name: "Survival" },
+  { id: "lobby", label: "Lobby", software: "paper", memory: 1024, name: "Lobby" },
+  { id: "creative", label: "Creative / Bauen", software: "purpur", memory: 3072, name: "Creative" },
+  { id: "mods", label: "Mods", software: "fabric", memory: 4096, name: "Mods" },
+];
 
 export function AddServerDialog({ project, open, onClose, onCreated }: { project: Project; open: boolean; onClose: () => void; onCreated: (server: Server) => void }) {
   const toast = useToast();
@@ -32,7 +40,9 @@ export function AddServerDialog({ project, open, onClose, onCreated }: { project
   const [eula, setEula] = useState(false);
   const [voicechat, setVoicechat] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [mode, setMode] = useState<"software" | "modpack">("software");
+  const [mode, setMode] = useState<"software" | "modpack" | "import">("software");
+  const [zip, setZip] = useState<File | null>(null);
+  const templateMemory = useRef<number | null>(null);
   const [packQuery, setPackQuery] = useState("");
   const [packSearch, setPackSearch] = useState("");
   const [pack, setPack] = useState<ModrinthHit | null>(null);
@@ -64,13 +74,26 @@ export function AddServerDialog({ project, open, onClose, onCreated }: { project
   // Die Version gilt nur, wenn sie zur gewählten Software gehört (die Liste ist immer die der aktuellen Software)
   const effectiveVersion = versions && versions.includes(version) ? version : (versions?.[0] ?? "");
   useEffect(() => {
-    if (softwareId) setMemory(softwareId === "velocity" ? 512 : 2048);
+    if (softwareId) setMemory(templateMemory.current ?? (softwareId === "velocity" ? 512 : 2048));
+    templateMemory.current = null;
     setVoicechat(false);
   }, [softwareId]);
 
   const info = options.find((item) => item.id === softwareId);
   const needsEula = info?.kind === "server";
   const canVoice = project.kind === "network" && ["paper", "purpur", "folia", "fabric"].includes(softwareId);
+
+  function applyTemplate(template: (typeof templates)[number]) {
+    if (!options.some((item) => item.id === template.software)) return;
+    templateMemory.current = template.memory;
+    setName((current) => current.trim() || template.name);
+    if (softwareId === template.software) {
+      setMemory(template.memory);
+      templateMemory.current = null;
+    } else {
+      setSoftwareId(template.software);
+    }
+  }
 
   async function create() {
     setBusy(true);
@@ -80,7 +103,18 @@ export function AddServerDialog({ project, open, onClose, onCreated }: { project
           ? { name, nodeId, memoryMB: Math.max(memory, 4096), eula, modpack: { project: pack.project_id, versionId: chosenPackVersion.id } }
           : { name, nodeId, software: softwareId, version: effectiveVersion, memoryMB: memory, eula: needsEula ? eula : true, voicechat };
       const server = await api.post<Server>(`/projects/${project.id}/servers`, body);
-      toast.success(mode === "modpack" ? "Server wird angelegt, das Modpack wird danach installiert" : "Server wird installiert");
+      if (mode === "import" && zip) {
+        try {
+          // Das Archiv wird in den Serverordner gelegt und dort entpackt; vorhandene Dateien (etwa die Server-Datei) bleiben
+          await upload(`/servers/${server.id}/files/upload?path=&overwrite=1`, [zip]);
+          await api.post(`/servers/${server.id}/files/extract`, { path: zip.name, dest: "" });
+          await api.delete(`/servers/${server.id}/files?path=${encodeURIComponent(zip.name)}`).catch(() => null);
+        } catch (error) {
+          toast.error(`Der Server ist angelegt, der Import ist aber fehlgeschlagen: ${error instanceof Error ? error.message : "Fehler"}`);
+        }
+      }
+      toast.success(mode === "modpack" ? "Server wird angelegt, das Modpack wird danach installiert" : mode === "import" ? "Server wird angelegt, das Archiv ist entpackt" : "Server wird installiert");
+      setZip(null);
       setName("");
       setEula(false);
       onClose();
@@ -92,7 +126,7 @@ export function AddServerDialog({ project, open, onClose, onCreated }: { project
     }
   }
 
-  const ready = name.trim() && nodeId && (mode === "modpack" ? pack && chosenPackVersion && eula : info && effectiveVersion && (!needsEula || eula));
+  const ready = name.trim() && nodeId && (mode === "modpack" ? pack && chosenPackVersion && eula : info && effectiveVersion && (!needsEula || eula) && (mode !== "import" || zip));
 
   return (
     <Dialog
@@ -111,7 +145,7 @@ export function AddServerDialog({ project, open, onClose, onCreated }: { project
         </>
       }
     >
-      {canModpack && project.kind === "server" && (
+      {project.kind === "server" && (
         <Tabs
           value={mode}
           onChange={(next) => {
@@ -120,14 +154,37 @@ export function AddServerDialog({ project, open, onClose, onCreated }: { project
           }}
           items={[
             { id: "software", label: "Software" },
-            { id: "modpack", label: "Modrinth-Modpack" },
+            ...(canModpack ? [{ id: "modpack" as const, label: "Modrinth-Modpack" }] : []),
+            { id: "import" as const, label: "ZIP importieren" },
           ]}
         />
+      )}
+      {mode === "software" && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-xs text-muted">Vorlage:</span>
+          {templates
+            .filter((template) => options.some((item) => item.id === template.software))
+            .map((template) => (
+              <button key={template.id} type="button" onClick={() => applyTemplate(template)} className="rounded-full border border-white/[0.1] px-2.5 py-1 text-xs text-muted transition hover:bg-white/[0.06] hover:text-ink">
+                {template.label}
+              </button>
+            ))}
+        </div>
       )}
       <div>
         <label className="label">Name</label>
         <input className="field" value={name} onChange={(event) => setName(event.target.value)} placeholder={softwareId === "velocity" ? "Proxy" : "Lobby"} maxLength={48} autoFocus />
       </div>
+      {mode === "import" && (
+        <div className="space-y-2">
+          <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-dashed border-white/[0.15] px-3 py-3 text-sm hover:bg-white/[0.03]">
+            <FileArchive className="h-5 w-5 shrink-0 text-muted" />
+            <span className="min-w-0 flex-1 truncate">{zip ? `${zip.name} (${megabytes(Math.max(1, Math.round(zip.size / 1024 ** 2)))})` : "ZIP-Datei auswählen (.zip, .tar.gz)"}</span>
+            <input type="file" accept=".zip,.tar,.tar.gz,.tgz" className="hidden" onChange={(event) => setZip(event.target.files?.[0] ?? null)} />
+          </label>
+          <p className="text-xs text-muted">Der Inhalt landet im Serverordner: Welt, Plugins, Konfiguration. Vorhandene Dateien werden nicht überschrieben, lege deshalb keine eigene Server-Datei bei. Die Software und Version wählst du unten.</p>
+        </div>
+      )}
       {mode === "modpack" && (
         <div className="space-y-2">
           <SearchInput value={packQuery} onChange={(event) => setPackQuery(event.target.value)} placeholder="Fabric-Modpack auf Modrinth suchen" />
@@ -173,7 +230,7 @@ export function AddServerDialog({ project, open, onClose, onCreated }: { project
         </div>
       )}
       <div className="grid gap-3 sm:grid-cols-2">
-        {mode === "software" && (
+        {mode !== "modpack" && (
           <>
             <div>
               <label className="label">Software</label>
@@ -220,7 +277,7 @@ export function AddServerDialog({ project, open, onClose, onCreated }: { project
         </div>
       </div>
       {fixedNode && <p className="text-xs text-muted">Ein Netzwerk liegt komplett auf einem Node, damit sich die Server im Docker-Netz finden.</p>}
-      {canVoice && mode === "software" && (
+      {canVoice && mode !== "modpack" && (
         <div className="flex items-center justify-between rounded-lg border border-white/[0.07] bg-white/[0.02] px-3 py-2.5">
           <div>
             <p className="text-sm font-medium">Simple Voice Chat</p>

@@ -2,7 +2,7 @@
 
 import { RefreshCw, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Badge, Button, Card, CardHeader } from "@/components/ui/primitives";
+import { Badge, Button, Card, CardHeader, Switch } from "@/components/ui/primitives";
 import { ConfirmDialog, useToast } from "@/components/ui/feedback";
 import { api, useApi } from "@/lib/api";
 import { megabytes } from "@/lib/format";
@@ -132,6 +132,7 @@ export function SettingsTab({ server, onChanged, onDeleted }: { server: Server; 
         </div>
       </Card>
 
+      <AutoRestart server={server} onDone={onChanged} />
       <PublicAddress server={server} onDone={onChanged} />
 
       <Reinstall server={server} offline={!!offline} onDone={onChanged} />
@@ -157,6 +158,35 @@ export function SettingsTab({ server, onChanged, onDeleted }: { server: Server; 
         }}
       />
     </div>
+  );
+}
+
+function AutoRestart({ server, onDone }: { server: Server; onDone: () => void }) {
+  const toast = useToast();
+  const grouped = !!server.groupId;
+  return (
+    <Card>
+      <CardHeader
+        title="Absturzerkennung"
+        description={
+          grouped
+            ? "Instanzen einer Gruppe startet der Autoscaler selbst neu."
+            : "Stürzt der Server ab (der Prozess endet mit einem Fehler, ohne dass du ihn gestoppt hast), meldet das Panel es unter „Ereignisse“. Mit Auto-Restart startet es ihn dazu bis zu dreimal in 15 Minuten neu – danach gibt es auf, damit er nicht endlos abstürzt."
+        }
+        action={
+          <Switch
+            checked={server.autoRestart}
+            disabled={grouped}
+            onChange={async (value) => {
+              if (await toast.run(() => api.put(`/servers/${server.id}/auto-restart`, { enabled: value }), value ? "Auto-Restart ist an" : "Auto-Restart ist aus")) onDone();
+            }}
+          />
+        }
+      />
+      <p className="px-5 py-3 text-xs text-muted">
+        Auto-Restart: <b className={server.autoRestart ? "text-good" : "text-muted"}>{server.autoRestart ? "eingeschaltet" : "aus"}</b>
+      </p>
+    </Card>
   );
 }
 

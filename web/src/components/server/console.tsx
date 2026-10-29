@@ -1,10 +1,11 @@
 "use client";
 
-import { ArrowDownToLine, Send } from "lucide-react";
+import { AlertTriangle, ArrowDownToLine, Download, Search, Send, X } from "lucide-react";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { Badge, Button, Card, Dot } from "@/components/ui/primitives";
-import { wsBase } from "@/lib/api";
-import { bytes, stateLabel, stateTone } from "@/lib/format";
+import { downloadUrl, wsBase } from "@/lib/api";
+import { analyse } from "@/lib/crash";
+import { ansiStrip, bytes, stateLabel, stateTone } from "@/lib/format";
 import type { LogLine, ServerState, Stats } from "@/lib/types";
 
 const MAX_LINES = 1500;
@@ -71,6 +72,9 @@ function tone(text: string): string {
 // ---------------------------------------------------------------- Konsole
 
 export function ConsoleTab({ serverId, canCommand, state: initialState, onState }: { serverId: string; canCommand: boolean; state?: ServerState; onState?: (state: ServerState) => void }) {
+  const [filter, setFilter] = useState("");
+  const [levels, setLevels] = useState({ warn: true, error: true, info: true });
+  const [dismissed, setDismissed] = useState<string[]>([]);
   const [lines, setLines] = useState<LogLine[]>([]);
   const [connected, setConnected] = useState(false);
   const [state, setState] = useState<ServerState | undefined>(initialState);
@@ -161,15 +165,26 @@ export function ConsoleTab({ serverId, canCommand, state: initialState, onState 
     }
   }
 
+  const visible = useMemo(() => {
+    const needle = filter.trim().toLowerCase();
+    return lines.filter((line) => {
+      const level = /(ERROR|SEVERE|FATAL)|Exception/.test(line.text) ? "error" : /WARN(ING)?/.test(line.text) ? "warn" : "info";
+      return levels[level] && (!needle || ansiStrip(line.text).toLowerCase().includes(needle));
+    });
+  }, [lines, filter, levels]);
+
   const rendered = useMemo(
     () =>
-      lines.map((line) => (
+      visible.map((line) => (
         <div key={line.seq} className={tone(line.text)}>
           {renderAnsi(line.text) || " "}
         </div>
       )),
-    [lines],
+    [visible],
   );
+
+  // Bekannte Fehlerbilder in den letzten Zeilen erklären (nur wenn der Server nicht läuft oder gerade gescheitert ist)
+  const hints = useMemo(() => analyse(lines.map((line) => ansiStrip(line.text))).filter((hint) => !dismissed.includes(hint.id)), [lines, dismissed]);
 
   const tn = stateTone(state);
   const running = state === "running" || state === "starting";
@@ -200,6 +215,55 @@ export function ConsoleTab({ serverId, canCommand, state: initialState, onState 
               ↓ {bytes(stats.netRx)} ↑ {bytes(stats.netTx)}
             </span>
           </div>
+        )}
+      </div>
+
+      {hints.length > 0 && (
+        <div className="space-y-2 border-b border-white/[0.06] bg-white/[0.015] px-4 py-3">
+          {hints.map((hint) => (
+            <div key={hint.id} className={`flex items-start gap-3 rounded-lg border px-3 py-2.5 text-xs ${hint.level === "bad" ? "border-bad/25 bg-bad/10" : "border-warn/25 bg-warn/10"}`}>
+              <AlertTriangle className={`mt-0.5 h-4 w-4 shrink-0 ${hint.level === "bad" ? "text-bad" : "text-warn"}`} />
+              <div className="min-w-0 flex-1">
+                <p className="font-medium text-ink">{hint.title}</p>
+                <p className="mt-0.5 leading-relaxed text-ink/70">{hint.text}</p>
+              </div>
+              <button onClick={() => setDismissed((current) => [...current, hint.id])} className="rounded p-1 text-muted hover:bg-white/[0.08] hover:text-ink" aria-label="Ausblenden">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="flex flex-wrap items-center gap-2 border-b border-white/[0.06] px-4 py-2">
+        <div className="flex min-w-[180px] flex-1 items-center gap-2 rounded-md border border-white/[0.08] bg-white/[0.02] px-2.5">
+          <Search className="h-3.5 w-3.5 shrink-0 text-muted" />
+          <input className="h-8 w-full bg-transparent text-xs outline-none placeholder:text-muted/60" value={filter} onChange={(event) => setFilter(event.target.value)} placeholder="In der Konsole suchen" />
+          {filter && (
+            <button onClick={() => setFilter("")} className="text-muted hover:text-ink" aria-label="Suche löschen">
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+        {(["info", "warn", "error"] as const).map((level) => (
+          <button
+            key={level}
+            onClick={() => setLevels((current) => ({ ...current, [level]: !current[level] }))}
+            className={`h-8 rounded-md border px-2.5 text-[11px] font-medium uppercase transition active:scale-95 ${levels[level] ? "border-white/[0.14] bg-white/[0.07] text-ink" : "border-white/[0.06] text-muted/60 line-through"}`}
+          >
+            {level}
+          </button>
+        ))}
+        {canCommand && (
+          <a href={downloadUrl(`/servers/${serverId}/files/download?path=logs/latest.log`)} className="inline-flex h-8 items-center gap-1.5 rounded-md border border-white/[0.09] px-3 text-xs text-muted transition hover:border-white/[0.18] hover:text-ink" title="Die Datei logs/latest.log des Servers herunterladen">
+            <Download className="h-3.5 w-3.5" />
+            Log
+          </a>
+        )}
+        {filter && (
+          <span className="text-[11px] text-muted">
+            {visible.length} von {lines.length} Zeilen
+          </span>
         )}
       </div>
 

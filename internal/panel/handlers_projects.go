@@ -24,11 +24,12 @@ type ServerDTO struct {
 
 type ProjectDTO struct {
 	Project
-	MyRole   string      `json:"myRole"`
-	Members  []Member    `json:"members,omitempty"`
-	Servers  []ServerDTO `json:"servers"`
-	Groups   []GroupDTO  `json:"groups"`
-	Problems []string    `json:"problems,omitempty"`
+	MyRole   string        `json:"myRole"`
+	Members  []Member      `json:"members,omitempty"`
+	Servers  []ServerDTO   `json:"servers"`
+	Groups   []GroupDTO    `json:"groups"`
+	Settings ProjectExtras `json:"settings"`
+	Problems []string      `json:"problems,omitempty"`
 }
 
 func rankName(rank int) string {
@@ -128,6 +129,9 @@ func (p *Panel) projectDTO(ctx context.Context, project Project, rank int, full 
 	dto := ProjectDTO{Project: project, MyRole: rankName(rank), Servers: p.serverDTOs(ctx, rows)}
 	if dto.Groups, err = p.groupDTOs(ctx, project.ID, dto.Servers); err != nil {
 		return ProjectDTO{}, err
+	}
+	if extras, err := p.store.Extras(project.ID); err == nil {
+		dto.Settings = extras
 	}
 	if full {
 		if dto.Members, err = p.store.ListMembers(project.ID); err != nil {

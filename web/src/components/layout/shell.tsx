@@ -4,10 +4,11 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Suspense, createContext, useCallback, useContext, useEffect, useMemo, useState, type ComponentType, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { Cpu, LayoutDashboard, LogOut, Menu, Network, PanelLeftClose, PanelLeftOpen, Server, UserCog, Users, X } from "lucide-react";
+import { Cpu, LayoutDashboard, LogOut, Menu, Network, PanelLeftClose, PanelLeftOpen, ScrollText, Search, Server, UserCog, Users, X } from "lucide-react";
 import { cx } from "@/components/ui/primitives";
 import { LodestoneLogo, PixelAvatar, Wordmark } from "@/components/ui/mc";
 import { Loading } from "@/components/ui/async";
+import { CommandPalette } from "./palette";
 import { api, useApi } from "@/lib/api";
 import type { AuthStatus, Project, User } from "@/lib/types";
 
@@ -86,6 +87,7 @@ function Shell({ user, children }: { user: User; children: ReactNode }) {
   const params = useSearchParams();
   const [open, setOpen] = useState(false);
   const [folded, setFolded] = useState(false);
+  const [palette, setPalette] = useState(false);
   const [slot, setSlot] = useState<HTMLElement | null>(null);
   const [secondary, setSecondary] = useState(0);
   const { data: projects } = useApi<Project[]>("/projects", { refreshInterval: 15000 });
@@ -100,9 +102,13 @@ function Shell({ user, children }: { user: User; children: ReactNode }) {
     });
   }
 
-  // Strg+B klappt die Seitenleiste ein und aus
+  // Strg+B klappt die Seitenleiste ein und aus, Strg+K öffnet die Schnellsuche
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setPalette((value) => !value);
+      }
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "b") {
         event.preventDefault();
         toggleFold();
@@ -155,6 +161,19 @@ function Shell({ user, children }: { user: User; children: ReactNode }) {
         </div>
 
         <nav className={cx("no-scrollbar flex-1 space-y-0.5 overflow-y-auto pb-4", compact ? "px-2" : "px-3")}>
+          <button
+            onClick={() => setPalette(true)}
+            title={compact ? "Suchen (Strg K)" : undefined}
+            className={cx("mb-2 flex w-full items-center rounded-lg border border-white/[0.07] bg-white/[0.03] text-[13px] text-muted transition hover:bg-white/[0.06] hover:text-ink", compact ? "justify-center py-2.5" : "gap-3 px-3 py-2")}
+          >
+            <Search className="h-4 w-4 shrink-0" />
+            {!compact && (
+              <>
+                <span className="flex-1 text-left">Suchen</span>
+                <kbd className="rounded border border-white/[0.1] px-1.5 text-[10px]">Strg K</kbd>
+              </>
+            )}
+          </button>
           {link("/", "Übersicht", LayoutDashboard, pathname === "/", compact)}
 
           {heading("Projekte")}
@@ -172,6 +191,7 @@ function Shell({ user, children }: { user: User; children: ReactNode }) {
           {heading("Verwaltung")}
           {link("/nodes/", "Nodes", Cpu, pathname === "/nodes/", compact)}
           {user.isAdmin && link("/users/", "Benutzer", Users, pathname === "/users/", compact)}
+          {user.isAdmin && link("/audit/", "Protokoll", ScrollText, pathname === "/audit/", compact)}
           {link("/account/", "Konto", UserCog, pathname === "/account/", compact)}
         </nav>
 
@@ -213,6 +233,7 @@ function Shell({ user, children }: { user: User; children: ReactNode }) {
 
   return (
     <SecondaryContext.Provider value={secondaryApi}>
+      <CommandPalette projects={projects} user={user} open={palette} onClose={() => setPalette(false)} />
       <div className="min-h-screen bg-bg lg:h-screen lg:overflow-hidden">
         <aside className={cx("fixed inset-y-0 left-0 z-30 hidden transition-[width] duration-200 lg:block", folded ? "w-[68px]" : "w-[240px]")}>{sidebar(folded)}</aside>
 

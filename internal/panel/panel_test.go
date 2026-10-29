@@ -18,15 +18,24 @@ import (
 
 // fakeNode ist ein Node, der nur merkt, was man ihm schickt.
 type fakeNode struct {
-	mu          sync.Mutex
-	servers     map[string]node.View
-	autoconfigs map[string]node.Autoconfig
-	deleted     []string
-	powered     []string
+	mu           sync.Mutex
+	servers      map[string]node.View
+	autoconfigs  map[string]node.Autoconfig
+	deleted      []string
+	powered      []string
+	commands     []string
+	backups      []node.Backup
+	backupFails  bool
+	files        map[string]string
+	addons       []node.Addon
+	pulled       []string
+	removed      []string
+	modpacks     []node.ModpackRequest
+	playitSecret string
 }
 
 func newFakeNode(t *testing.T) (*fakeNode, *httptest.Server) {
-	fake := &fakeNode{servers: map[string]node.View{}, autoconfigs: map[string]node.Autoconfig{}}
+	fake := &fakeNode{servers: map[string]node.View{}, autoconfigs: map[string]node.Autoconfig{}, files: map[string]string{}}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/system", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, 200, map[string]any{"version": "test", "docker": map[string]any{"dockerVersion": "x", "memoryBytes": int64(64) << 30}})
@@ -74,7 +83,7 @@ func newFakeNode(t *testing.T) (*fakeNode, *httptest.Server) {
 		fake.mu.Lock()
 		view, ok := fake.servers[r.PathValue("id")]
 		if ok {
-			if body.Action == "start" {
+			if body.Action == "start" || body.Action == "restart" {
 				view.State = node.StateRunning
 			} else {
 				view.State = node.StateOffline
@@ -102,6 +111,97 @@ func newFakeNode(t *testing.T) (*fakeNode, *httptest.Server) {
 		fake.servers[r.PathValue("id")] = view
 		fake.mu.Unlock()
 		writeJSON(w, 200, view)
+	})
+	mux.HandleFunc("POST /api/servers/{id}/command", func(w http.ResponseWriter, r *http.Request) {
+		var body struct{ Command string }
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		fake.mu.Lock()
+		view, ok := fake.servers[r.PathValue("id")]
+		if ok && view.State == node.StateRunning {
+			fake.commands = append(fake.commands, body.Command)
+			fake.mu.Unlock()
+			w.WriteHeader(204)
+			return
+		}
+		fake.mu.Unlock()
+		writeJSON(w, 409, map[string]string{"error": "der Server läuft nicht"})
+	})
+	mux.HandleFunc("POST /api/servers/{id}/backups", func(w http.ResponseWriter, r *http.Request) {
+		var body struct{ Label string }
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		fake.mu.Lock()
+		defer fake.mu.Unlock()
+		if fake.backupFails {
+			writeJSON(w, 201, node.Backup{Name: "20260101-000000-" + body.Label + ".tar.gz", Creating: true})
+			return
+		}
+		backup := node.Backup{Name: "20260101-00000" + string(rune('0'+len(fake.backups))) + "-" + body.Label + ".tar.gz", Size: 5 << 20}
+		fake.backups = append(fake.backups, backup)
+		writeJSON(w, 201, node.Backup{Name: backup.Name, Creating: true})
+	})
+	mux.HandleFunc("GET /api/servers/{id}/backups", func(w http.ResponseWriter, r *http.Request) {
+		fake.mu.Lock()
+		defer fake.mu.Unlock()
+		list := append([]node.Backup{}, fake.backups...)
+		writeJSON(w, 200, list)
+	})
+	mux.HandleFunc("GET /api/servers/{id}/files/content", func(w http.ResponseWriter, r *http.Request) {
+		fake.mu.Lock()
+		content, ok := fake.files[r.URL.Query().Get("path")]
+		fake.mu.Unlock()
+		if !ok {
+			writeJSON(w, 404, map[string]string{"error": "nicht gefunden"})
+			return
+		}
+		_, _ = w.Write([]byte(content))
+	})
+	mux.HandleFunc("GET /api/servers/{id}/addons", func(w http.ResponseWriter, r *http.Request) {
+		fake.mu.Lock()
+		list := append([]node.Addon{}, fake.addons...)
+		fake.mu.Unlock()
+		writeJSON(w, 200, list)
+	})
+	mux.HandleFunc("POST /api/servers/{id}/files/pull", func(w http.ResponseWriter, r *http.Request) {
+		var request node.PullRequest
+		_ = json.NewDecoder(r.Body).Decode(&request)
+		fake.mu.Lock()
+		fake.pulled = append(fake.pulled, request.Path)
+		fake.mu.Unlock()
+		w.WriteHeader(204)
+	})
+	mux.HandleFunc("DELETE /api/servers/{id}/files", func(w http.ResponseWriter, r *http.Request) {
+		fake.mu.Lock()
+		fake.removed = append(fake.removed, r.URL.Query().Get("path"))
+		fake.mu.Unlock()
+		w.WriteHeader(204)
+	})
+	mux.HandleFunc("POST /api/servers/{id}/modpack", func(w http.ResponseWriter, r *http.Request) {
+		var request node.ModpackRequest
+		_ = json.NewDecoder(r.Body).Decode(&request)
+		fake.mu.Lock()
+		fake.modpacks = append(fake.modpacks, request)
+		fake.mu.Unlock()
+		writeJSON(w, 202, node.ModpackStatus{State: "running"})
+	})
+	mux.HandleFunc("PUT /api/playit", func(w http.ResponseWriter, r *http.Request) {
+		var body struct{ Secret string }
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		fake.mu.Lock()
+		fake.playitSecret = body.Secret
+		fake.mu.Unlock()
+		writeJSON(w, 200, node.PlayitStatus{Configured: true, Running: true, Image: "ghcr.io/playit-cloud/playit-agent:0.15", Logs: []string{"Tunnel bereit"}})
+	})
+	mux.HandleFunc("GET /api/playit", func(w http.ResponseWriter, r *http.Request) {
+		fake.mu.Lock()
+		configured := fake.playitSecret != ""
+		fake.mu.Unlock()
+		writeJSON(w, 200, node.PlayitStatus{Configured: configured, Image: "ghcr.io/playit-cloud/playit-agent:0.15", Logs: []string{}})
+	})
+	mux.HandleFunc("DELETE /api/playit", func(w http.ResponseWriter, r *http.Request) {
+		fake.mu.Lock()
+		fake.playitSecret = ""
+		fake.mu.Unlock()
+		w.WriteHeader(204)
 	})
 	mux.HandleFunc("PUT /api/servers/{id}/autoconfig", func(w http.ResponseWriter, r *http.Request) {
 		var config node.Autoconfig

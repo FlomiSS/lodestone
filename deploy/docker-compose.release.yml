@@ -46,9 +46,12 @@ services:
       - default
       - lodestone
 
-  # Automatisches Update: Prüft auf neue Images auf ghcr.io
-  # und aktualisiert Lodestone ohne Datenverlust im laufenden Betrieb.
+  # Automatisches Update (optional, standardmäßig aus): prüft auf neue Images auf ghcr.io.
+  # Einschalten mit:  docker compose -f docker-compose.release.yml --profile autoupdate up -d
+  # Hinweis: Watchtower von containrrr ist archiviert und läuft mit neuen Docker-Versionen (29+) nicht mehr zuverlässig.
+  # Sicherer ist ein manuelles Update:  docker compose -f docker-compose.release.yml pull && docker compose -f docker-compose.release.yml up -d
   watchtower:
+    profiles: ["autoupdate"]
     image: containrrr/watchtower:latest
     restart: unless-stopped
     volumes:

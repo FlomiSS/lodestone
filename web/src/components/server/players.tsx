@@ -6,6 +6,7 @@ import { Badge, Card, CardHeader, EmptyState, StatCard } from "@/components/ui/p
 import { SeriesChart } from "@/components/ui/chart";
 import { ErrorState, Loading } from "@/components/ui/async";
 import { ChartCard, RangeTabs } from "./stats";
+import { PlayerAdmin, PlayerMenu } from "./player-admin";
 import { useApi } from "@/lib/api";
 import { ago } from "@/lib/format";
 import type { Metrics, PlayerInfo, Range, SeenPlayer, Server } from "@/lib/types";
@@ -26,7 +27,7 @@ function Head({ name, size = 28 }: { name: string; size?: number }) {
   );
 }
 
-export function PlayersTab({ server }: { server: Server }) {
+export function PlayersTab({ server, canOperate = false }: { server: Server; canOperate?: boolean }) {
   const running = server.view?.state === "running";
   const [range, setRange] = useState<Range>("24h");
   const live = useApi<PlayerInfo>(running ? `/servers/${server.id}/players` : null, { refreshInterval: 10000 });
@@ -74,7 +75,8 @@ export function PlayersTab({ server }: { server: Server }) {
               {info.names.map((name) => (
                 <div key={name} className="flex items-center gap-3 rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2">
                   <Head name={name} />
-                  <span className="truncate text-sm">{name}</span>
+                  <span className="min-w-0 flex-1 truncate text-sm">{name}</span>
+                  {canOperate && !isProxy && <PlayerMenu server={server} name={name} onDone={() => live.mutate()} />}
                 </div>
               ))}
             </div>
@@ -101,6 +103,7 @@ export function PlayersTab({ server }: { server: Server }) {
           )}
         </Card>
       </div>
+      {canOperate && !isProxy && <PlayerAdmin server={server} />}
     </div>
   );
 }

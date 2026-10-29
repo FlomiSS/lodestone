@@ -503,6 +503,13 @@ func (p *Panel) syncNetwork(ctx context.Context, projectID string) (SyncResult, 
 			}
 		}
 	}
+	if extras, err := p.store.Extras(projectID); err == nil && extras.MOTD != "" {
+		for i := range net {
+			if net[i].Row.Role == RoleProxy {
+				net[i].MOTD = extras.MOTD
+			}
+		}
+	}
 	configs := BuildAutoconfigs(project.Secret, net, project.Voicechat)
 	for _, dto := range dtos {
 		config, ok := configs[dto.ID]

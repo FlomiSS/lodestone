@@ -6,3 +6,4 @@ cd "$(dirname "$0")/../web"
 npx next build
 rm -rf ../internal/panel/webui/dist
 cp -r out ../internal/panel/webui/dist
+touch ../internal/panel/webui/dist/.gitkeep

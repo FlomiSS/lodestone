@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -14,6 +15,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	_ "time/tzdata" // Zeitzonen auch ohne Datenbank des Systems
 
 	"github.com/lodestone-mc/lodestone/internal/panel"
 	"github.com/lodestone-mc/lodestone/internal/panel/webui"
@@ -56,10 +59,19 @@ func run(logger *slog.Logger) error {
 	defer store.Close()
 
 	cfg := panel.Config{
-		Listen:        env("LODESTONE_LISTEN", ":8480"),
-		SecureCookies: flag("LODESTONE_SECURE_COOKIES"),
-		TrustProxy:    flag("LODESTONE_TRUST_PROXY"),
-		Version:       version,
+		Listen:                env("LODESTONE_LISTEN", ":8480"),
+		SecureCookies:         flag("LODESTONE_SECURE_COOKIES"),
+		TrustProxy:            flag("LODESTONE_TRUST_PROXY"),
+		AllowInternalWebhooks: flag("LODESTONE_WEBHOOK_ALLOW_INTERNAL"),
+		Version:               version,
+		DataDir:               dataDir,
+	}
+	if zone := env("LODESTONE_TZ", ""); zone != "" {
+		location, err := time.LoadLocation(zone)
+		if err != nil {
+			return fmt.Errorf("LODESTONE_TZ=%q: %w", zone, err)
+		}
+		cfg.Location = location
 	}
 	if err := bootstrap(logger, store); err != nil {
 		return err

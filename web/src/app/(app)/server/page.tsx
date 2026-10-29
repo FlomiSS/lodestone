@@ -157,7 +157,7 @@ function ServerView() {
       {active === "stats" && <StatsTab server={server} />}
       {active === "files" && <FilesTab serverId={server.id} canWrite={rank >= roleRank.operator} />}
       {active === "addons" && extensions && <AddonsTab serverId={server.id} canWrite={rank >= roleRank.operator} noun={extensions as "Plugins" | "Mods"} running={state === "running" || state === "starting"} />}
-      {active === "players" && <PlayersTab server={server} />}
+      {active === "players" && <PlayersTab server={server} canOperate={rank >= roleRank.operator} />}
       {active === "backups" && <BackupsTab serverId={server.id} canWrite={rank >= roleRank.operator} offline={state === "offline"} />}
       {active === "settings" && <SettingsTab server={server} onChanged={() => mutate()} onDeleted={() => router.replace(`/project/?id=${server.projectId}`)} />}
     </>

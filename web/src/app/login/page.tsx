@@ -13,6 +13,9 @@ export default function LoginPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [setup, setSetup] = useState(false);
+  // Zweiter Schritt der Anmeldung (Zwei-Faktor): Ticket vom Server und der Code aus der App
+  const [ticket, setTicket] = useState<string | null>(null);
+  const [code, setCode] = useState("");
 
   useEffect(() => {
     api
@@ -29,7 +32,16 @@ export default function LoginPage() {
     setBusy(true);
     setError(null);
     try {
-      await api.post(setup ? "/auth/setup" : "/auth/login", { username, password });
+      if (ticket) {
+        await api.post("/auth/totp", { ticket, code });
+        window.location.replace(nextTarget());
+        return;
+      }
+      const answer = await api.post<{ needsTotp?: boolean; ticket?: string }>(setup ? "/auth/setup" : "/auth/login", { username, password });
+      if (answer?.needsTotp && answer.ticket) {
+        setTicket(answer.ticket);
+        return;
+      }
       window.location.replace(nextTarget());
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : "Anmeldung fehlgeschlagen");
@@ -54,6 +66,26 @@ export default function LoginPage() {
 
         <form onSubmit={submit} className="rounded-xl border border-white/[0.08] bg-surface p-6 shadow-panel">
           <div className="space-y-4">
+            {ticket ? (
+              <div>
+                <label className="label" htmlFor="code">
+                  Code aus deiner Authenticator-App
+                </label>
+                <input
+                  id="code"
+                  className="field text-center font-mono text-lg tracking-[0.3em]"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  autoFocus
+                  value={code}
+                  onChange={(event) => setCode(event.target.value)}
+                  placeholder="000000"
+                  required
+                />
+                <p className="mt-2 text-xs text-muted">Du hast die App nicht zur Hand? Gib stattdessen einen Wiederherstellungscode ein (z. B. a1b2c-d3e4f).</p>
+              </div>
+            ) : (
+            <>
             <div>
               <label className="label" htmlFor="username">
                 Benutzername
@@ -90,6 +122,8 @@ export default function LoginPage() {
                 </button>
               </div>
             </div>
+            </>
+            )}
 
             {error && <p className="rounded-lg border border-bad/25 bg-bad/10 px-3 py-2 text-xs leading-relaxed text-bad">{error}</p>}
 
@@ -99,7 +133,7 @@ export default function LoginPage() {
               className="group inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-accent text-sm font-semibold text-white transition duration-100 hover:bg-accent/90 active:scale-[0.97] active:brightness-90 disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100"
             >
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              {busy ? "Einen Moment" : setup ? "Administrator anlegen" : "Anmelden"}
+              {busy ? "Einen Moment" : ticket ? "Bestätigen" : setup ? "Administrator anlegen" : "Anmelden"}
               {!busy && <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />}
             </button>
           </div>

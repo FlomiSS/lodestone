@@ -71,11 +71,25 @@ sie mit dem Panel verbindet. Datenbank hinter einer Schnittstelle, SQLite für k
    Nodes, geplante Backups, Zwei-Faktor, Audit-Log
 7. Forge/NeoForge, Geyser/Floodgate und weitere Bausteine, Spieler-Verwaltung über Rechte (Torch optional)
 
+## Betrieb (Panel-Schleifen)
+
+Das Panel startet beim Hochfahren vier Hintergrundschleifen (`maintain.go`): Messwerte (`sampleLoop`), Autoscaler der Gruppen
+(`scaleLoop`), Wächter (`watchLoop`, alle 10 s: Abstürze über den Exit-Code des Nodes, Auto-Restart, Node offline/online, wenig
+Arbeitsspeicher; Ergebnisse als Ereignisse und Webhooks) und Zeitpläne (`scheduleLoop`, mit Nachholen bis zu einer Stunde).
+Webhooks nutzen einen eigenen HTTP-Client, der Verbindungen in interne Netze sperrt (auch bei Weiterleitungen).
+
+Sicherheit (`security.go`, `auth.go`): TOTP-Geheimnisse liegen mit AES-GCM verschlüsselt in der Datenbank (Schlüssel
+`data/secret.key`), API-Schlüssel (`lds_…`) nur als SHA-256-Hash und nur für Anfragen, nicht für Konto-Änderungen. Jede
+verändernde Anfrage landet im Protokoll (Muster und Pfad, ohne Inhalt).
+
+Der Node prüft vor jedem Start den freien Arbeitsspeicher (`/proc/meminfo`, Reserve `LODESTONE_NODE_MEMORY_RESERVE_MB`) und
+meldet beim Beenden eines Containers den Exit-Code mit dem Merkmal „angefordert“; so unterscheidet das Panel Absturz und Stopp.
+
 ## Grenzen in v0.1
 
 - Ein Netzwerk liegt auf **einem** Node (die Server erreichen sich über das Docker-Netz `lodestone`).
 - Das Panel greift per HTTP auf die Nodes zu (kein Tunnel nach außen).
-- Backups sind manuell (begrenzte Aufbewahrung, kein Zeitplan); Gruppen/Autoscaling fehlen.
+- Backups liegen auf der Maschine des Nodes (begrenzte Aufbewahrung); Zeitpläne lösen sie aus, ein externes Ziel fehlt.
 - Die Weboberfläche liefert kein TLS selbst – Reverse-Proxy davor setzen.
 
 ## Offene Entscheidungen

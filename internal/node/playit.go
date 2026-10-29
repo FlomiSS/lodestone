@@ -20,7 +20,7 @@ import (
 const (
 	playitContainer = "lodestone-playit"
 	// DefaultPlayitImage ist das offizielle Image des Agenten.
-	DefaultPlayitImage = "playitcloud/playit:latest"
+	DefaultPlayitImage = "ghcr.io/playit-cloud/playit-agent:0.15"
 	playitLogLines     = 30
 )
 

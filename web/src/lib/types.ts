@@ -25,6 +25,8 @@ export interface NodeInfo {
   error?: string;
   version?: string;
   serverCount: number;
+  memoryAvailable?: number;
+  memoryCommitted?: number;
   system?: { dockerVersion: string; os: string; architecture: string; cpus: number; memoryBytes: number };
 }
 
@@ -88,6 +90,7 @@ export interface Server {
   voiceAddress?: string;
   publicAddress?: string;
   modpack?: ModpackInfo;
+  autoRestart: boolean;
   view: NodeView | null;
 }
 
@@ -173,7 +176,14 @@ export interface Project {
   members?: Member[];
   servers: Server[];
   groups: Group[];
+  settings?: ProjectSettings;
   problems?: string[];
+}
+
+export interface ProjectSettings {
+  statusPublic: boolean;
+  statusSlug: string;
+  motd: string;
 }
 
 export interface Group {
@@ -307,4 +317,112 @@ export interface LogLine {
   seq: number;
   time: number;
   text: string;
+}
+
+export interface Me extends User {
+  totpEnabled: boolean;
+  recoveryCodes: number;
+}
+
+export type StepAction = "backup" | "command" | "restart" | "start" | "stop" | "wait";
+
+export interface ScheduleStep {
+  action: StepAction;
+  value?: string;
+}
+
+export interface Schedule {
+  id: string;
+  projectId: string;
+  serverId: string;
+  serverName: string;
+  name: string;
+  steps: ScheduleStep[];
+  kind: "interval" | "daily" | "weekly";
+  everyMinutes: number;
+  atMinute: number;
+  weekdays: number;
+  warnMinutes: number;
+  enabled: boolean;
+  lastRun: number;
+  lastStatus: "" | "ok" | "failed" | "skipped";
+  lastMessage: string;
+  nextRun: number;
+}
+
+export interface ProjectEvent {
+  id: number;
+  time: number;
+  serverId?: string;
+  kind: string;
+  level: "info" | "warn" | "error";
+  message: string;
+}
+
+export interface Webhook {
+  id: string;
+  name: string;
+  url: string;
+  kind: "discord" | "generic";
+  events: string[];
+  enabled: boolean;
+  lastStatus: string;
+}
+
+export interface AuditEntry {
+  id: number;
+  time: number;
+  userId?: string;
+  username: string;
+  action: string;
+  target?: string;
+  status: number;
+  ip?: string;
+}
+
+export interface ApiKeyInfo {
+  id: string;
+  name: string;
+  prefix: string;
+  createdAt: number;
+  lastUsed: number;
+  expiresAt: number;
+}
+
+export interface SessionInfo {
+  id: string;
+  createdAt: number;
+  expiresAt: number;
+  userAgent: string;
+  ip: string;
+  current: boolean;
+}
+
+export interface ListedPlayer {
+  uuid: string;
+  name: string;
+  level?: number;
+  reason?: string;
+  created?: string;
+  source?: string;
+  expires?: string;
+}
+
+export interface PlayerLists {
+  whitelist: ListedPlayer[];
+  ops: ListedPlayer[];
+  banned: ListedPlayer[];
+  bannedIps: { ip: string; reason?: string; created?: string }[];
+}
+
+export interface PublicStatus {
+  name: string;
+  description?: string;
+  online: boolean;
+  address?: string;
+  players: number;
+  maxPlayers?: number;
+  version?: string;
+  servers: { name: string; online: boolean; players: number; maxPlayers?: number }[];
+  updated: number;
 }

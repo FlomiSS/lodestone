@@ -42,6 +42,16 @@ type View struct {
 	StartedAt int64  `json:"startedAt,omitempty"`
 	// AutoconfigPending heißt: Ein Satz Dateiänderungen wartet noch darauf, angewendet zu werden.
 	AutoconfigPending bool `json:"autoconfigPending,omitempty"`
+	// LastExit beschreibt, wie der letzte Lauf geendet hat (das Panel erkennt daran Abstürze).
+	LastExit *ExitInfo `json:"lastExit,omitempty"`
+}
+
+// ExitInfo sagt, wie ein Lauf geendet hat. Ein Ende mit Code ungleich 0, das niemand verlangt hat, ist ein Absturz.
+type ExitInfo struct {
+	Code int `json:"code"`
+	// Requested: Der Daemon hat das Ende verlangt (Stopp, Neustart, Kill).
+	Requested bool  `json:"requested"`
+	At        int64 `json:"at"`
 }
 
 // Server ist ein verwalteter Minecraft-Server.
@@ -67,6 +77,10 @@ type Server struct {
 	applyMu    sync.Mutex // serialisiert das Anwenden von Autoconfig
 	addons     addonCache
 	backupBusy atomic.Bool
+
+	// lastExit ist das Ende des letzten Laufs; killRequested merkt sich einen Kill über die Schnittstelle.
+	lastExit      *ExitInfo
+	killRequested bool
 
 	// Modpack: läuft gerade eine Installation, und wie weit ist sie
 	modpackBusy atomic.Bool
@@ -97,6 +111,10 @@ func (s *Server) View() View {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	view := View{Spec: s.spec, State: s.state, LastError: s.lastError, Stats: s.stats, AutoconfigPending: s.autoconfigPending()}
+	if s.lastExit != nil {
+		exit := *s.lastExit
+		view.LastExit = &exit
+	}
 	if !s.startedAt.IsZero() && (s.state == StateRunning || s.state == StateStarting || s.state == StateStopping) {
 		view.StartedAt = s.startedAt.UnixMilli()
 	}
@@ -313,6 +331,10 @@ func (s *Server) adoptRun(id string, conn io.ReadWriteCloser) {
 		conn.Close()
 		s.mu.Lock()
 		s.stdin = nil
+		if err == nil {
+			s.lastExit = &ExitInfo{Code: code, Requested: s.state == StateStopping || s.killRequested, At: time.Now().UnixMilli()}
+		}
+		s.killRequested = false
 		s.setStateLocked(StateOffline, "")
 		close(done)
 		s.mu.Unlock()
@@ -460,6 +482,7 @@ func (s *Server) Kill() error {
 		return ErrBadState
 	}
 	id := s.container
+	s.killRequested = true
 	s.mu.Unlock()
 	s.logf("Server wird beendet (Kill)")
 	return s.m.rt.Kill(context.Background(), id)

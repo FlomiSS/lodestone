@@ -41,13 +41,17 @@ func OpenStore(path string) (*Store, error) {
 		db.Close()
 		return nil, fmt.Errorf("Schema anlegen: %w", err)
 	}
+	if _, err := db.Exec(schemaMore); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("Schema anlegen: %w", err)
+	}
 	// Spalten, die erst später dazukamen
-	for _, column := range []struct{ table, name, definition string }{
+	for _, column := range append([]struct{ table, name, definition string }{
 		{"projects", "voicechat", "INTEGER NOT NULL DEFAULT 0"},
 		{"servers", "group_id", "TEXT NOT NULL DEFAULT ''"},
 		{"servers", "public_address", "TEXT NOT NULL DEFAULT ''"},
 		{"servers", "modpack", "TEXT NOT NULL DEFAULT ''"},
-	} {
+	}, moreColumns...) {
 		if err := store.ensureColumn(column.table, column.name, column.definition); err != nil {
 			db.Close()
 			return nil, fmt.Errorf("Spalte %s.%s: %w", column.table, column.name, err)
@@ -542,8 +546,10 @@ type ServerRow struct {
 	// ein playit-Tunnel). Sie wird nur angezeigt.
 	PublicAddress string `json:"publicAddress,omitempty"`
 	// Modpack ist das Modrinth-Modpack, aus dem der Server angelegt wurde.
-	Modpack   *ModpackInfo `json:"modpack,omitempty"`
-	CreatedAt int64        `json:"createdAt"`
+	Modpack *ModpackInfo `json:"modpack,omitempty"`
+	// AutoRestart startet den Server nach einem Absturz neu (mit Obergrenze).
+	AutoRestart bool  `json:"autoRestart"`
+	CreatedAt   int64 `json:"createdAt"`
 }
 
 // ModpackInfo beschreibt das Modpack, mit dem ein Server angelegt wurde.
@@ -557,19 +563,20 @@ type ModpackInfo struct {
 	Minecraft     string `json:"minecraft"`
 }
 
-const serverColumns = "id, project_id, node_id, name, slug, role, software, in_try, try_position, forced_host, voicechat, group_id, public_address, modpack, created_at"
+const serverColumns = "id, project_id, node_id, name, slug, role, software, in_try, try_position, forced_host, voicechat, group_id, public_address, modpack, auto_restart, created_at"
 
 func scanServer(row interface{ Scan(...any) error }) (ServerRow, error) {
 	var server ServerRow
 	var inTry, voice int
 	var modpack string
-	if err := row.Scan(&server.ID, &server.ProjectID, &server.NodeID, &server.Name, &server.Slug, &server.Role, &server.Software, &inTry, &server.TryPosition, &server.ForcedHost, &voice, &server.GroupID, &server.PublicAddress, &modpack, &server.CreatedAt); err != nil {
+	var autoRestart int
+	if err := row.Scan(&server.ID, &server.ProjectID, &server.NodeID, &server.Name, &server.Slug, &server.Role, &server.Software, &inTry, &server.TryPosition, &server.ForcedHost, &voice, &server.GroupID, &server.PublicAddress, &modpack, &autoRestart, &server.CreatedAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return ServerRow{}, ErrNotFound
 		}
 		return ServerRow{}, err
 	}
-	server.InTry, server.Voicechat = inTry == 1, voice == 1
+	server.InTry, server.Voicechat, server.AutoRestart = inTry == 1, voice == 1, autoRestart == 1
 	if modpack != "" {
 		var info ModpackInfo
 		if json.Unmarshal([]byte(modpack), &info) == nil {
@@ -584,8 +591,8 @@ func (s *Store) CreateServer(server ServerRow) (ServerRow, error) {
 		server.ID = newID()
 	}
 	server.CreatedAt = time.Now().UnixMilli()
-	_, err := s.db.Exec("INSERT INTO servers ("+serverColumns+") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-		server.ID, server.ProjectID, server.NodeID, server.Name, server.Slug, server.Role, server.Software, boolInt(server.InTry), server.TryPosition, server.ForcedHost, boolInt(server.Voicechat), server.GroupID, server.PublicAddress, modpackText(server.Modpack), server.CreatedAt)
+	_, err := s.db.Exec("INSERT INTO servers ("+serverColumns+") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+		server.ID, server.ProjectID, server.NodeID, server.Name, server.Slug, server.Role, server.Software, boolInt(server.InTry), server.TryPosition, server.ForcedHost, boolInt(server.Voicechat), server.GroupID, server.PublicAddress, modpackText(server.Modpack), boolInt(server.AutoRestart), server.CreatedAt)
 	if isUnique(err) {
 		return ServerRow{}, fmt.Errorf("%w: ein Server mit diesem Namen existiert im Projekt schon", ErrExists)
 	}
@@ -618,8 +625,8 @@ func (s *Store) ListServers(projectID string) ([]ServerRow, error) {
 }
 
 func (s *Store) UpdateServer(server ServerRow) error {
-	_, err := s.db.Exec("UPDATE servers SET name = ?, slug = ?, role = ?, software = ?, in_try = ?, try_position = ?, forced_host = ?, voicechat = ?, node_id = ?, public_address = ?, modpack = ? WHERE id = ?",
-		server.Name, server.Slug, server.Role, server.Software, boolInt(server.InTry), server.TryPosition, server.ForcedHost, boolInt(server.Voicechat), server.NodeID, server.PublicAddress, modpackText(server.Modpack), server.ID)
+	_, err := s.db.Exec("UPDATE servers SET name = ?, slug = ?, role = ?, software = ?, in_try = ?, try_position = ?, forced_host = ?, voicechat = ?, node_id = ?, public_address = ?, modpack = ?, auto_restart = ? WHERE id = ?",
+		server.Name, server.Slug, server.Role, server.Software, boolInt(server.InTry), server.TryPosition, server.ForcedHost, boolInt(server.Voicechat), server.NodeID, server.PublicAddress, modpackText(server.Modpack), boolInt(server.AutoRestart), server.ID)
 	if isUnique(err) {
 		return fmt.Errorf("%w: ein Server mit diesem Namen existiert im Projekt schon", ErrExists)
 	}

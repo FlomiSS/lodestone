@@ -39,6 +39,24 @@ Browser ──►  Panel (Go, SQLite, eingebettete Next.js-Oberfläche)  ──H
 - **Simple Voice Chat** pro Server einschaltbar: Plugin bzw. Mod wird installiert, der UDP-Port veröffentlicht und
   `voice_host` gesetzt
 - Server hinter dem Proxy sind **nicht** nach außen veröffentlicht, nur der Proxy (und der Voicechat-UDP-Port)
+- **Zeitpläne:** Ketten aus Backup, Befehl, Neustart, Start, Stopp und Warten – alle N Minuten, täglich oder an
+  gewählten Wochentagen, mit Vorwarnung im Chat und Nachholen nach einem Panel-Neustart (Zeitzone über `LODESTONE_TZ`)
+- **Ereignisse und Webhooks:** Abstürze, automatische Neustarts, Node offline/online, wenig Arbeitsspeicher und
+  Zeitpläne landen im Projektverlauf und gehen auf Wunsch an **Discord** oder eine beliebige Adresse (Schutz vor
+  Zugriffen auf das interne Netz). **Auto-Restart** startet abgestürzte Server neu (höchstens 3-mal in 15 Minuten)
+- **Spielerverwaltung:** Kicken, Sperren, Operator, Whitelist und IP-Sperren per Klick (Listen aus den Dateien des
+  Servers); **MOTD** des Netzwerks mit MiniMessage-Vorschau
+- **Öffentliche Statusseite** pro Projekt (`/status/?p=<Kürzel>`, mit `&embed=1` zum Einbetten) und JSON unter
+  `/api/public/status/<Kürzel>`; zeigt nur Online-Status, Spielerzahl, Version und Adresse
+- **Konsole:** Suche, Filter nach Stufe, Log-Download und Hinweise zu bekannten Fehlern (zu wenig RAM, EULA, Port belegt,
+  falsche Java-Version, Plugin- und Mod-Konflikte)
+- **Arbeitsspeicher-Planer:** Der Node prüft vor dem Start, ob genug RAM frei ist (Reserve einstellbar), und die
+  Nodes-Seite zeigt zugesagt gegen tatsächlich belegt
+- **Konto-Sicherheit:** Zwei-Faktor-Anmeldung (TOTP mit QR-Code und Wiederherstellungscodes), **API-Schlüssel** für
+  Skripte (`Authorization: Bearer lds_…`), Sitzungsliste mit Abmelden und ein **Protokoll** aller Änderungen
+  (90 Tage, nur für Administratoren)
+- **Anlegen:** Vorlagen (Survival, Lobby, Creative, Mods), **ZIP-Import** einer bestehenden Welt oder eines Servers
+  und Strg+K als Schnellsuche
 
 ## Schnellstart (1-Klick Installer für Linux)
 
@@ -56,8 +74,10 @@ Lodestone-Images werden bei jedem Push auf GitHub automatisch per GitHub Actions
 - `ghcr.io/henny263462/lodestone-panel:latest`
 - `ghcr.io/henny263462/lodestone-node:latest`
 
-### Automatische Updates (Zero Maintenance)
-In der Release-Compose-Datei (`docker-compose.release.yml`) ist **Watchtower** integriert. Es prüft standardmäßig stündlich auf neue Images und startet Panel und Node im laufenden Betrieb neu – ohne dass Serverdaten oder Spieldateien verloren gehen.
+### Automatische Updates (optional)
+In der Release-Compose-Datei (`docker-compose.release.yml`) liegt **Watchtower** bereit, ist aber standardmäßig **aus**
+(`--profile autoupdate` schaltet es ein). Es prüft stündlich auf neue Images. Watchtower von containrrr ist archiviert und
+läuft mit neuen Docker-Versionen (29+) nicht zuverlässig; das manuelle Update unten ist die sichere Wahl.
 
 ### Manuelles Update (1-Klick)
 ```bash
@@ -121,9 +141,12 @@ Für schlanke Maschinen: `sh scripts/package.sh` baut Linux-Binaries nach `dist/
 | `LODESTONE_ADMIN_USER` / `_PASSWORD` | legt beim ersten Start den Administrator an (ohne Passwort wird eins erzeugt und einmalig ins Log geschrieben). Ohne diese Variablen fragt die Oberfläche beim ersten Aufruf nach dem Administrator |
 | `LODESTONE_NODE_URL` / `_TOKEN` / `_NAME` / `_PUBLIC_HOST` | trägt beim Start einen Node ein bzw. aktualisiert ihn |
 | `LODESTONE_SECURE_COOKIES`, `LODESTONE_TRUST_PROXY` | hinter HTTPS-Proxy auf `true` |
+| `LODESTONE_TZ` | Zeitzone für Zeitpläne, z. B. `Europe/Berlin` (Standard: Zeitzone des Panels, sonst UTC) |
+| `LODESTONE_WEBHOOK_ALLOW_INTERNAL` | `true` erlaubt Webhooks an Adressen im internen Netz (Standard: gesperrt) |
 
 Node-Daemon: `LODESTONE_NODE_TOKEN`, `_LISTEN`, `_DATA_DIR`, `_PUBLIC_HOST`, `_PORT_RANGE` (z. B. `28000-28099`),
-`_CONTAINER_USER`, `_NETWORK` – oder `config.json` (siehe unten).
+`_CONTAINER_USER`, `_NETWORK`, `_MEMORY_RESERVE_MB` (RAM, der für das System frei bleibt, Standard 1024), `_PLAYIT_IMAGE`
+– oder `config.json` (siehe unten).
 
 ## Sicherheit
 
@@ -132,6 +155,8 @@ Node-Daemon: `LODESTONE_NODE_TOKEN`, `_LISTEN`, `_DATA_DIR`, `_PUBLIC_HOST`, `_P
 - Rechte werden bei **jeder** Anfrage serverseitig geprüft (Betrachter lesen Konsole/Spieler, Operatoren steuern
   Server und Dateien, Admins ändern Einstellungen, Eigentümer löschen Projekte); Projekte, in denen man nicht
   Mitglied ist, „gibt es nicht“ (404)
+- Optional **Zwei-Faktor** (TOTP, TOTP-Geheimnisse mit AES-GCM verschlüsselt abgelegt), API-Schlüssel nur als Hash
+  gespeichert und ohne Zugriff auf Konto-Einstellungen; Änderungen werden im **Protokoll** festgehalten
 - Das Token des Nodes verlässt das Panel nie; die Node-API gehört nur ins interne Netz oder hinter TLS/VPN
 - Container laufen ohne Root-Rechte des Hosts, mit `no-new-privileges`, abgeschalteten Capabilities, Prozess-,
   Speicher- und CPU-Limit; Dateizugriffe bleiben im Serverordner (`os.Root`, auch über Symlinks hinweg)

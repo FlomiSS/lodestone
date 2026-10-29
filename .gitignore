@@ -26,3 +26,6 @@ loadstone_fuer_florian/
 # Gebaute Oberfläche (entsteht durch scripts/build-web.sh, nur der Platzhalter bleibt)
 /internal/panel/webui/dist/*
 !/internal/panel/webui/dist/.gitkeep
+
+# Lokale Übergabe
+HANDOFF.md

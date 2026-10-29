@@ -21,6 +21,12 @@ type Config struct {
 	Listen string
 	// SecureCookies setzt das Secure-Flag am Sitzungs-Cookie (hinter HTTPS).
 	SecureCookies bool
+	// AllowInternalWebhooks erlaubt Webhooks an interne Adressen (127.0.0.1, 192.168.x.x …). Standard: gesperrt.
+	AllowInternalWebhooks bool
+	// DataDir ist der Ordner der Datenbank; dort liegt auch secret.key.
+	DataDir string
+	// Location ist die Zeitzone der Zeitpläne (nil = die der Maschine).
+	Location *time.Location
 	// TrustProxy vertraut X-Forwarded-For für die IP bei der Anmelde-Drosselung.
 	TrustProxy bool
 	Version    string
@@ -35,6 +41,21 @@ type Panel struct {
 	sw       *software.Resolver
 	modrinth *Modrinth
 	web      http.Handler
+
+	hookClient *http.Client
+	watch      *watcher
+
+	keyMu    sync.Mutex
+	key      []byte
+	totpUsed map[string]int64
+
+	statusLimit limiter
+	statusMu    sync.Mutex
+	statusCache map[string]publicStatus
+
+	scheduleMu       sync.Mutex
+	runningSchedules map[string]bool
+	warnedKeys       map[string]bool
 
 	viewMu sync.Mutex
 	views  map[string]viewEntry
@@ -66,6 +87,8 @@ func New(cfg Config, store *Store, logger *slog.Logger, web http.Handler) *Panel
 		cfg: cfg, store: store, log: logger, web: web,
 		throttle: newThrottle(), sw: software.NewResolver(), modrinth: NewModrinth(),
 		views: map[string]viewEntry{}, nodeClient: newNodeClient,
+		hookClient: newHookClient(cfg.AllowInternalWebhooks), watch: newWatcher(),
+		runningSchedules: map[string]bool{}, warnedKeys: map[string]bool{}, totpUsed: map[string]int64{}, statusCache: map[string]publicStatus{},
 		live: map[string]liveInfo{}, scaleLast: map[string]time.Time{}, idleSince: map[string]time.Time{}, restarts: map[string][]time.Time{},
 	}
 }
@@ -80,8 +103,19 @@ func (p *Panel) Handler() http.Handler {
 	mux.HandleFunc("POST /api/auth/setup", p.setup)
 	mux.HandleFunc("POST /api/auth/login", p.login)
 	mux.HandleFunc("POST /api/auth/logout", p.authenticate(p.logout))
-	mux.HandleFunc("GET /api/me", p.authenticate(p.me))
-	mux.HandleFunc("POST /api/me/password", p.authenticate(p.changeOwnPassword))
+	mux.HandleFunc("POST /api/auth/totp", p.totpLogin)
+	mux.HandleFunc("GET /api/me", p.authenticate(p.meDetails))
+	mux.HandleFunc("POST /api/me/password", p.authenticate(p.sessionOnly(p.changeOwnPassword)))
+	mux.HandleFunc("POST /api/me/totp/setup", p.authenticate(p.sessionOnly(p.totpSetup)))
+	mux.HandleFunc("POST /api/me/totp/enable", p.authenticate(p.sessionOnly(p.totpEnable)))
+	mux.HandleFunc("POST /api/me/totp/disable", p.authenticate(p.sessionOnly(p.totpDisable)))
+	mux.HandleFunc("GET /api/me/keys", p.authenticate(p.sessionOnly(p.listKeys)))
+	mux.HandleFunc("POST /api/me/keys", p.authenticate(p.sessionOnly(p.createKey)))
+	mux.HandleFunc("DELETE /api/me/keys/{id}", p.authenticate(p.sessionOnly(p.deleteKey)))
+	mux.HandleFunc("GET /api/me/sessions", p.authenticate(p.sessionOnly(p.listSessions)))
+	mux.HandleFunc("DELETE /api/me/sessions/{id}", p.authenticate(p.sessionOnly(p.deleteSession)))
+	mux.HandleFunc("DELETE /api/users/{id}/totp", p.authenticate(p.sessionOnly(p.resetTotp)))
+	mux.HandleFunc("GET /api/audit", p.authenticate(p.listAudit))
 
 	// Benutzer
 	mux.HandleFunc("GET /api/users", p.authenticate(p.listUsers))
@@ -134,6 +168,23 @@ func (p *Panel) Handler() http.Handler {
 	mux.HandleFunc("GET /api/servers/{id}/addons/details", p.authenticate(p.addonsDetails))
 	mux.HandleFunc("POST /api/servers/{id}/addons/switch", p.authenticate(p.addonsSwitch))
 	mux.HandleFunc("PUT /api/servers/{id}/public-address", p.authenticate(p.putPublicAddress))
+	mux.HandleFunc("PUT /api/servers/{id}/auto-restart", p.authenticate(p.putAutoRestart))
+	mux.HandleFunc("GET /api/projects/{id}/events", p.authenticate(p.listEvents))
+	mux.HandleFunc("PUT /api/projects/{id}/motd", p.authenticate(p.putMOTD))
+	mux.HandleFunc("PUT /api/projects/{id}/status", p.authenticate(p.putStatus))
+	mux.HandleFunc("GET /api/public/status/{slug}", p.publicStatus)
+	mux.HandleFunc("GET /api/servers/{id}/player-lists", p.authenticate(p.playerLists))
+	mux.HandleFunc("POST /api/servers/{id}/player-action", p.authenticate(p.playerAction))
+	mux.HandleFunc("GET /api/projects/{id}/schedules", p.authenticate(p.listSchedules))
+	mux.HandleFunc("POST /api/projects/{id}/schedules", p.authenticate(p.createSchedule))
+	mux.HandleFunc("PATCH /api/schedules/{id}", p.authenticate(p.updateSchedule))
+	mux.HandleFunc("DELETE /api/schedules/{id}", p.authenticate(p.deleteSchedule))
+	mux.HandleFunc("POST /api/schedules/{id}/run", p.authenticate(p.runScheduleNow))
+	mux.HandleFunc("GET /api/projects/{id}/webhooks", p.authenticate(p.listWebhooks))
+	mux.HandleFunc("POST /api/projects/{id}/webhooks", p.authenticate(p.createWebhook))
+	mux.HandleFunc("PATCH /api/webhooks/{id}", p.authenticate(p.updateWebhook))
+	mux.HandleFunc("DELETE /api/webhooks/{id}", p.authenticate(p.deleteWebhook))
+	mux.HandleFunc("POST /api/webhooks/{id}/test", p.authenticate(p.testWebhook))
 	mux.HandleFunc("POST /api/servers/{id}/addons/check", p.authenticate(p.addonsCheck))
 	mux.HandleFunc("POST /api/servers/{id}/addons/update", p.authenticate(p.addonsUpdate))
 	mux.HandleFunc("/api/servers/{id}/{rest...}", p.authenticate(p.proxyServer))

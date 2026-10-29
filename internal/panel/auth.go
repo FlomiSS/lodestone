@@ -110,7 +110,16 @@ func randomToken() (string, error) {
 
 type ctxKey int
 
-const userKey ctxKey = 1
+const (
+	userKey ctxKey = 1
+	keyAuth ctxKey = 2
+)
+
+// viaKey sagt, ob die Anfrage mit einem API-Schlüssel statt mit einer Browser-Sitzung kam.
+func viaKey(ctx context.Context) bool {
+	value, _ := ctx.Value(keyAuth).(bool)
+	return value
+}
 
 func userFrom(ctx context.Context) User {
 	user, _ := ctx.Value(userKey).(User)
@@ -131,6 +140,7 @@ func (p *Panel) startSession(w http.ResponseWriter, r *http.Request, user User) 
 	if err := p.store.CreateSession(hashToken(token), user.ID, agent, expires); err != nil {
 		return err
 	}
+	p.store.SetSessionIP(hashToken(token), p.clientIP(r))
 	http.SetCookie(w, &http.Cookie{
 		Name: cookieName, Value: token, Path: "/", Expires: expires, MaxAge: int(sessionLength.Seconds()),
 		HttpOnly: true, Secure: p.cfg.SecureCookies, SameSite: http.SameSiteStrictMode,
@@ -146,26 +156,54 @@ func (p *Panel) clearCookie(w http.ResponseWriter) {
 // zusätzlich zu SameSite=Strict). Der Websocket prüft stattdessen die Herkunft.
 func (p *Panel) authenticate(next func(http.ResponseWriter, *http.Request)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		cookie, err := r.Cookie(cookieName)
-		if err != nil || cookie.Value == "" {
-			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "nicht angemeldet"})
-			return
-		}
-		user, err := p.store.SessionUser(hashToken(cookie.Value))
-		if err != nil {
-			p.clearCookie(w)
-			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "nicht angemeldet"})
-			return
-		}
-		switch r.Method {
-		case http.MethodGet, http.MethodHead, http.MethodOptions:
-		default:
-			if r.Header.Get(csrfHeader) == "" {
-				writeJSON(w, http.StatusForbidden, map[string]string{"error": "fehlender Schutz-Header"})
+		var user User
+		usedKey := false
+		if header := r.Header.Get("Authorization"); strings.HasPrefix(header, "Bearer "+keyPrefix) {
+			// Persönlicher API-Schlüssel: kein Cookie, deshalb auch kein CSRF-Header nötig
+			found, err := p.store.APIKeyUser(hashToken(strings.TrimPrefix(header, "Bearer ")))
+			if err != nil {
+				writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "ungültiger oder abgelaufener API-Schlüssel"})
 				return
 			}
+			user, usedKey = found, true
+		} else {
+			cookie, err := r.Cookie(cookieName)
+			if err != nil || cookie.Value == "" {
+				writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "nicht angemeldet"})
+				return
+			}
+			user, err = p.store.SessionUser(hashToken(cookie.Value))
+			if err != nil {
+				p.clearCookie(w)
+				writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "nicht angemeldet"})
+				return
+			}
+			switch r.Method {
+			case http.MethodGet, http.MethodHead, http.MethodOptions:
+			default:
+				if r.Header.Get(csrfHeader) == "" {
+					writeJSON(w, http.StatusForbidden, map[string]string{"error": "fehlender Schutz-Header"})
+					return
+				}
+			}
 		}
-		next(w, r.WithContext(context.WithValue(r.Context(), userKey, user)))
+		ctx := context.WithValue(context.WithValue(r.Context(), userKey, user), keyAuth, usedKey)
+		request := r.WithContext(ctx)
+		if r.Method == http.MethodGet || r.Method == http.MethodHead || r.Method == http.MethodOptions {
+			next(w, request)
+			return
+		}
+		// Alles, was etwas ändert, kommt ins Protokoll (Pfad, nie der Inhalt der Anfrage)
+		rec := &recorder{ResponseWriter: w}
+		next(rec, request)
+		action := r.Pattern
+		if action == "" {
+			action = r.Method + " " + r.URL.Path
+		}
+		if usedKey {
+			action += " (API-Schlüssel)"
+		}
+		p.recordAudit(user.ID, user.Username, action, auditPath(r.URL.Path), rec.status, p.clientIP(r))
 	}
 }
 

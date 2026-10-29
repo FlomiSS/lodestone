@@ -63,6 +63,8 @@ type NetServer struct {
 	PublicHost string
 	// VoiceHostPort ist der veröffentlichte UDP-Port für Voicechat (0, wenn es keinen gibt).
 	VoiceHostPort int
+	// MOTD ist die Nachricht in der Serverliste (nur am Proxy; leer = Standard von Velocity).
+	MOTD string
 }
 
 func (s NetServer) internalAddress() string {
@@ -137,6 +139,9 @@ func proxyAutoconfig(secret string, backends []NetServer, proxy NetServer, voice
 			{Path: []string{"forced-hosts"}, Value: forced},
 		},
 	}}
+	if proxy.MOTD != "" {
+		edits[0].Set = append(edits[0].Set, node.SetOp{Path: []string{"motd"}, Value: proxy.MOTD})
+	}
 	if voiceProxy && proxy.VoiceHostPort > 0 && proxy.PublicHost != "" {
 		// Der Proxy nimmt den Voicechat aller Server über einen UDP-Port an und reicht ihn weiter
 		edits = append(edits, node.Edit{

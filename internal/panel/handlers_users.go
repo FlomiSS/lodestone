@@ -16,7 +16,7 @@ func (p *Panel) authStatus(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
-	result := map[string]any{"setupRequired": count == 0, "version": p.cfg.Version}
+	result := map[string]any{"setupRequired": count == 0, "version": p.cfg.Version, "timezone": p.location().String()}
 	if cookie, err := r.Cookie(cookieName); err == nil {
 		if user, err := p.store.SessionUser(hashToken(cookie.Value)); err == nil {
 			result["user"] = user
@@ -88,14 +88,26 @@ func (p *Panel) login(w http.ResponseWriter, r *http.Request) {
 	if !valid {
 		p.throttle.fail(key)
 		p.throttle.fail(ipKey + "|*")
+		p.recordAudit("", strings.TrimSpace(body.Username), "Anmeldung fehlgeschlagen", "", http.StatusUnauthorized, p.clientIP(r))
 		writeError(w, fail(http.StatusUnauthorized, "Benutzername oder Passwort stimmt nicht"))
 		return
 	}
 	p.throttle.reset(key)
+	if _, enabled, _, _ := p.store.TotpState(user.ID); enabled {
+		// Zweiter Schritt: Das Ticket gilt fünf Minuten und nur für diesen Benutzer
+		ticket, err := p.makeTicket(user.ID)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"needsTotp": true, "ticket": ticket})
+		return
+	}
 	if err := p.startSession(w, r, user); err != nil {
 		writeError(w, err)
 		return
 	}
+	p.recordAudit(user.ID, user.Username, "Anmeldung", "", http.StatusOK, p.clientIP(r))
 	writeJSON(w, http.StatusOK, user)
 }
 

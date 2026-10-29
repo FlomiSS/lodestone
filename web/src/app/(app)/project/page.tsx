@@ -9,6 +9,10 @@ import { ConfirmDialog, Dialog, useToast } from "@/components/ui/feedback";
 import { ErrorState, Loading } from "@/components/ui/async";
 import { AddServerDialog } from "@/components/add-server";
 import { GroupsTab } from "@/components/groups";
+import { SchedulesTab } from "@/components/schedules";
+import { EventsTab } from "@/components/events";
+import { MotdCard } from "@/components/motd";
+import { StatusCard } from "@/components/status-settings";
 import { ChartCard, RangeTabs } from "@/components/server/stats";
 import { SeriesChart } from "@/components/ui/chart";
 import { PowerButtons, StateBadge } from "@/components/status";
@@ -26,7 +30,7 @@ export default function ProjectPage() {
   );
 }
 
-type Tab = "servers" | "network" | "groups" | "members" | "settings";
+type Tab = "servers" | "network" | "groups" | "schedules" | "events" | "members" | "settings";
 
 function ProjectView() {
   const id = useSearchParams().get("id");
@@ -46,6 +50,8 @@ function ProjectView() {
   const tabs: { id: Tab; label: string; count?: number }[] = [
     { id: "servers", label: "Server", count: project.servers.length },
     ...(network ? [{ id: "network" as const, label: "Netzwerk" }, { id: "groups" as const, label: "Gruppen", count: project.groups.length }] : []),
+    { id: "schedules", label: "Zeitpläne" },
+    { id: "events", label: "Ereignisse" },
     { id: "members", label: "Mitglieder", count: project.members?.length },
     ...(canManage ? [{ id: "settings" as const, label: "Einstellungen" }] : []),
   ];
@@ -83,6 +89,8 @@ function ProjectView() {
       {tab === "servers" && <ServersTab project={project} refresh={() => mutate()} onAdd={canAdd ? () => setAdding(true) : undefined} />}
       {tab === "network" && network && <NetworkTab project={project} canManage={canManage} refresh={() => mutate()} />}
       {tab === "groups" && network && <GroupsTab project={project} refresh={() => mutate()} />}
+      {tab === "schedules" && <SchedulesTab project={project} />}
+      {tab === "events" && <EventsTab project={project} />}
       {tab === "members" && <MembersTab project={project} refresh={() => mutate()} />}
       {tab === "settings" && canManage && <SettingsTab project={project} refresh={() => mutate()} />}
 
@@ -259,6 +267,8 @@ function NetworkTab({ project, canManage, refresh }: { project: Project; canMana
       </Card>
 
       <VoicechatCard project={project} proxy={proxy} canManage={canManage} refresh={refresh} />
+
+      <MotdCard key={project.settings?.motd ?? ""} project={project} canManage={canManage} refresh={refresh} />
 
       <Card>
         <CardHeader
@@ -499,6 +509,7 @@ function SettingsTab({ project, refresh }: { project: Project; refresh: () => vo
 
   return (
     <div className="space-y-5">
+      <StatusCard project={project} refresh={refresh} />
       <Card>
         <CardHeader title="Allgemein" />
         <div className="space-y-4 px-5 py-4">
