@@ -111,20 +111,10 @@ code, pre, .font-mono {
   color: rgb(var(--ink));
 }
 
-.nav-links {
+.nav-actions {
   display: flex;
   align-items: center;
-  gap: 1.5rem;
-}
-
-.nav-links a.nav-item {
-  color: rgb(var(--muted));
-  font-size: 13px;
-  font-weight: 500;
-  transition: color 0.15s ease;
-}
-.nav-links a.nav-item:hover {
-  color: rgb(var(--ink));
+  gap: 0.75rem;
 }
 
 /* --------------------------------- Buttons (Angular, No Glow) --------------------------------- */
@@ -331,217 +321,20 @@ code, pre, .font-mono {
   border-color: rgba(255, 255, 255, 0.2);
 }
 
-/* --------------------------------- Live Mockup Frame (Angular, No Glow) --------------------------------- */
-.mockup-wrapper {
+/* --------------------------------- Dashboard Preview (Image, Angular) --------------------------------- */
+.preview-wrapper {
   margin: 0 auto;
   max-width: 1040px;
-}
-
-.mockup-frame {
   border-radius: 4px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgb(var(--surface));
   overflow: hidden;
-  text-align: left;
 }
 
-.mockup-titlebar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.6rem 0.85rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgb(var(--bg));
-}
-
-.window-dots {
-  display: flex;
-  gap: 5px;
-}
-.window-dot {
-  width: 9px;
-  height: 9px;
-  border-radius: 1px;
-}
-
-.mockup-address {
-  font-size: 11.5px;
-  color: rgb(var(--muted));
-  background: rgba(255, 255, 255, 0.03);
-  padding: 2px 12px;
-  border-radius: 2px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  font-family: 'JetBrains Mono', monospace;
-}
-
-.mockup-body {
-  display: grid;
-  grid-template-columns: 230px 1fr;
-  min-height: 440px;
-  background: rgb(var(--bg));
-}
-
-@media (max-width: 768px) {
-  .mockup-body {
-    grid-template-columns: 1fr;
-  }
-  .mockup-sidebar {
-    display: none;
-  }
-}
-
-.mockup-sidebar {
-  border-right: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgb(var(--surface));
-  padding: 1.1rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1.1rem;
-}
-
-.sidebar-backlink {
-  font-size: 11px;
-  color: rgb(var(--muted));
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.sidebar-title-box {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  padding-bottom: 0.75rem;
-}
-.sidebar-server-name {
-  font-size: 14.5px;
-  font-weight: 600;
-  color: rgb(var(--ink));
-  margin: 0;
-}
-.sidebar-server-sub {
-  font-size: 11px;
-  color: rgb(var(--muted));
-  margin: 2px 0 6px;
-}
-
-.sidebar-nav {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.sidebar-nav-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.4rem 0.55rem;
-  border-radius: 2px;
-  font-size: 12.5px;
-  color: rgb(var(--muted));
-  text-decoration: none;
-  transition: all 0.1s ease;
-}
-.sidebar-nav-item.active {
-  background: rgba(255, 255, 255, 0.08);
-  color: rgb(var(--ink));
-  font-weight: 500;
-}
-.sidebar-nav-item:hover:not(.active) {
-  background: rgba(255, 255, 255, 0.03);
-  color: rgb(var(--ink));
-}
-
-.sidebar-resource-box {
-  margin-top: auto;
-  padding: 0.65rem;
-  border-radius: 3px;
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  font-size: 11px;
-}
-.meter-bar {
-  height: 4px;
-  border-radius: 1px;
-  background: rgba(255, 255, 255, 0.08);
-  overflow: hidden;
-  margin: 3px 0 8px;
-}
-.meter-fill {
-  height: 100%;
-  border-radius: 1px;
-  background: rgb(var(--accent));
-}
-
-.mockup-main {
-  padding: 1.25rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1.1rem;
-  background: rgb(var(--bg));
-}
-
-.mockup-header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.85rem;
-}
-.mockup-header-title h2 {
-  font-size: 16.5px;
-  font-weight: 600;
-  margin: 0;
-  color: #fff;
-}
-.mockup-header-title p {
-  font-size: 11.5px;
-  color: rgb(var(--muted));
-  margin: 2px 0 0;
-}
-
-.mockup-console-card {
-  border-radius: 3px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: #0d0e14;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.console-terminal {
-  padding: 0.85rem;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 12px;
-  line-height: 1.55;
-  color: #d1d5db;
-  height: 230px;
-  overflow-y: auto;
-  white-space: pre-wrap;
-  word-break: break-all;
-}
-
-.console-line {
-  margin: 0 0 2px;
-}
-.log-time { color: rgb(var(--muted)); }
-.log-info { color: #60a5fa; }
-.log-tag { color: #a78bfa; }
-.log-success { color: #34d399; }
-
-.console-input-row {
-  display: flex;
-  align-items: center;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-  padding: 0.45rem 0.65rem;
-  background: rgb(var(--surface));
-  gap: 0.5rem;
-}
-.console-input {
-  flex: 1;
-  background: transparent;
-  border: none;
-  color: rgb(var(--ink));
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 12px;
-  outline: none;
+.preview-image {
+  width: 100%;
+  height: auto;
+  display: block;
 }
 
 /* --------------------------------- Feature Grid (Angular, Flat) --------------------------------- */
