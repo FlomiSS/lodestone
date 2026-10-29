@@ -48,7 +48,7 @@ jobs:
           fi
 
       - name: Build & Push lodestone-panel Image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: Dockerfile.panel
@@ -59,7 +59,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Build & Push lodestone-node Image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: Dockerfile.node
