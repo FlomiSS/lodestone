@@ -15,7 +15,7 @@ RUN rm -rf internal/panel/webui/dist
 COPY --from=web /src/web/out internal/panel/webui/dist
 RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/lodestone-panel ./cmd/lodestone-panel
 
-FROM alpine:3.22
+FROM alpine:3.24
 RUN apk add --no-cache ca-certificates tzdata && adduser -D -u 1000 lodestone && mkdir /data && chown lodestone /data
 COPY --from=build /out/lodestone-panel /usr/local/bin/lodestone-panel
 USER lodestone
