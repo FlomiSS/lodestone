@@ -1,0 +1,28 @@
+# Build-Ergebnisse
+/bin/
+*.exe
+/dist/
+
+# Daten und Schlüssel eines laufenden Daemons
+config.json
+/data/
+
+# Next.js (kommt mit dem Panel)
+node_modules/
+.next/
+out/
+
+# Editor
+.idea/
+.vscode/
+
+# Lokale Exporte und Geheimnisse
+.env
+*.tar
+*.zip
+loadstone_fuer_florian/
+*.tsbuildinfo
+
+# Gebaute Oberfläche (entsteht durch scripts/build-web.sh, nur der Platzhalter bleibt)
+/internal/panel/webui/dist/*
+!/internal/panel/webui/dist/.gitkeep

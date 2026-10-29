@@ -1,0 +1,14 @@
+.git
+.github
+bin
+dist
+data
+config.json
+.env
+*.tar
+*.zip
+website
+web/node_modules
+web/.next
+web/out
+loadstone_fuer_florian

@@ -1,0 +1,31 @@
+name: Fehler melden
+description: Etwas funktioniert nicht wie erwartet
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: Was ist passiert?
+      description: Was hast du erwartet, was ist stattdessen passiert?
+    validations: { required: true }
+  - type: textarea
+    id: steps
+    attributes:
+      label: So lässt es sich nachstellen
+    validations: { required: true }
+  - type: input
+    id: version
+    attributes:
+      label: Lodestone-Version
+      description: Steht unten links im Panel oder im Image-Tag.
+  - type: input
+    id: env
+    attributes:
+      label: Umgebung
+      placeholder: z. B. Ubuntu 24.04, Docker 27
+  - type: textarea
+    id: logs
+    attributes:
+      label: Log-Ausgabe
+      description: Aus `docker compose logs panel node`. Bitte Token und Passwörter entfernen.
+      render: text

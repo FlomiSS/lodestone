@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Lodestone – Hosting-Panel für Minecraft zum Selbsthosten</title>
+  <meta name="description" content="Lodestone ist ein Open-Source-Hosting-Panel für Minecraft: Server und ganze Netzwerke mit Docker, Modrinth-Modpacks, Backups, Konsole und playit.gg – zum Selbsthosten.">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top">
+    <a class="brand" href="#top" aria-label="Lodestone, Anfang der Seite">
+      <svg viewBox="0 0 32 32" width="26" height="26" aria-hidden="true"><use href="favicon.svg#mark"/></svg>
+      Lodestone
+    </a>
+    <nav aria-label="Hauptnavigation">
+      <a href="#features">Funktionen</a>
+      <a href="#start">Loslegen</a>
+      <a href="#faq">FAQ</a>
+      <a class="button small" href="https://github.com/Henny263462/lodestone">GitHub</a>
+    </nav>
+  </header>
+
+  <main id="top">
+    <section class="hero">
+      <p class="eyebrow">Open Source · Selbst gehostet · Docker</p>
+      <h1>Minecraft-Server verwalten, <span>ohne Chaos.</span></h1>
+      <p class="lead">Lodestone ist ein Hosting-Panel für einzelne Server und ganze Netzwerke. Konsole, Dateien, Backups, Plugins und Mods von Modrinth – und ein Modpack ist mit einem Klick installiert.</p>
+      <p class="actions">
+        <a class="button" href="#start">In fünf Minuten starten</a>
+        <a class="button ghost" href="https://github.com/Henny263462/lodestone">Quellcode ansehen</a>
+      </p>
+      <p class="note">Kostenlos · läuft auf deinem eigenen Rechner oder Server · keine Cloud nötig</p>
+    </section>
+
+    <section id="features" aria-labelledby="features-title">
+      <h2 id="features-title">Alles, was ein Server braucht</h2>
+      <ul class="grid">
+        <li>
+          <h3>Modrinth-Modpacks</h3>
+          <p>Fabric-Modpack suchen, Version wählen, anlegen. Lodestone lädt Mods und Konfiguration herunter, prüft Prüfsummen und zeigt den Fortschritt.</p>
+        </li>
+        <li>
+          <h3>Plugins &amp; Mods im Blick</h3>
+          <p>Zu jeder installierten Datei siehst du Modrinth-Seite, Version, Lizenz und Quellcode. Versionen lassen sich wechseln, Updates mit einem Klick einspielen.</p>
+        </li>
+        <li>
+          <h3>Netzwerke mit Autoconfig</h3>
+          <p>Velocity-Proxy und Server dahinter: Forwarding, Secrets, Serverliste, Join-Reihenfolge und Forced Hosts schreibt das Panel selbst.</p>
+        </li>
+        <li>
+          <h3>playit.gg eingebaut</h3>
+          <p>Freunde einladen ohne Portfreigabe im Router: Der Node startet den playit-Agenten, du trägst die Tunnel-Adresse beim Server ein.</p>
+        </li>
+        <li>
+          <h3>Konsole &amp; Dateien</h3>
+          <p>Live-Konsole mit Farben, Editor mit Syntax-Highlighting, Upload per Drag &amp; Drop, Verschieben, Archivieren, Entpacken und Mehrfachauswahl.</p>
+        </li>
+        <li>
+          <h3>Backups &amp; Rechte</h3>
+          <p>Backups bei laufendem Server, sicheres Wiederherstellen. Mehrere Benutzer mit Rollen pro Projekt, Passwörter mit argon2id, isolierte Container.</p>
+        </li>
+      </ul>
+    </section>
+
+    <section id="start" aria-labelledby="start-title">
+      <h2 id="start-title">Loslegen</h2>
+      <p>Voraussetzung ist ein Rechner mit Docker und Docker Compose.</p>
+      <ol class="steps">
+        <li>
+          <h3>Herunterladen</h3>
+          <pre><code>git clone https://github.com/Henny263462/lodestone.git
+cd lodestone</code></pre>
+        </li>
+        <li>
+          <h3>Konfigurieren</h3>
+          <pre><code>cp .env.example .env
+# Passwort, Token (openssl rand -hex 32) und DOCKER_GID eintragen
+mkdir -p /srv/lodestone &amp;&amp; chown 1000:1000 /srv/lodestone</code></pre>
+        </li>
+        <li>
+          <h3>Starten</h3>
+          <pre><code>docker compose up -d --build</code></pre>
+          <p>Dann <code>http://&lt;deine-maschine&gt;:8480</code> öffnen und mit dem Administrator aus der <code>.env</code> anmelden.</p>
+        </li>
+      </ol>
+      <p>Aus dem Internet erreichbar? Stelle einen Reverse-Proxy mit HTTPS davor. Details stehen in der <a href="https://github.com/Henny263462/lodestone#readme">README</a>.</p>
+    </section>
+
+    <section id="faq" aria-labelledby="faq-title">
+      <h2 id="faq-title">Häufige Fragen</h2>
+      <details>
+        <summary>Was kostet Lodestone?</summary>
+        <p>Nichts. Der Quellcode ist offen (MIT-Lizenz). Du zahlst nur für den Rechner, auf dem es läuft.</p>
+      </details>
+      <details>
+        <summary>Welche Server-Software wird unterstützt?</summary>
+        <p>Paper, Purpur, Folia, Fabric, Vanilla und Velocity. Version, Download mit Prüfsumme und Java-Version werden automatisch bestimmt.</p>
+      </details>
+      <details>
+        <summary>Welche Modpacks funktionieren?</summary>
+        <p>Modrinth-Modpacks (.mrpack) mit Fabric, die auf Servern laufen. Forge und NeoForge folgen später.</p>
+      </details>
+      <details>
+        <summary>Brauche ich eine Portfreigabe im Router?</summary>
+        <p>Nein, wenn du playit.gg nutzt: Den Schlüssel einmal unter „Nodes“ eintragen, im playit-Dashboard einen Tunnel anlegen und die Adresse beim Server speichern.</p>
+      </details>
+      <details>
+        <summary>Ist das sicher?</summary>
+        <p>Rechte werden bei jeder Anfrage serverseitig geprüft, Container laufen ohne Root-Rechte und mit Limits. Der Node-Daemon hat Zugriff auf Docker – betreibe ihn nur im internen Netz oder hinter TLS/VPN. Sicherheitslücken meldest du bitte privat, siehe <a href="https://github.com/Henny263462/lodestone/blob/main/SECURITY.md">SECURITY.md</a>.</p>
+      </details>
+    </section>
+  </main>
+
+  <footer>
+    <p>Lodestone ist ein unabhängiges Projekt und nicht mit Mojang, Microsoft, Modrinth oder playit.gg verbunden. „Minecraft“ ist eine Marke von Mojang AB.</p>
+    <p><a href="https://github.com/Henny263462/lodestone">GitHub</a> · <a href="https://github.com/Henny263462/lodestone/issues">Fehler melden</a> · <a href="https://github.com/Henny263462/lodestone/blob/main/LICENSE">MIT-Lizenz</a></p>
+  </footer>
+</body>
+</html>

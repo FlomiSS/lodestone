@@ -1,0 +1,9 @@
+# Wie Dockerfile.panel, aber mit schon gebautem Binary (siehe scripts/package.sh) – schnell auf kleinen Maschinen.
+FROM alpine:3.22
+RUN apk add --no-cache ca-certificates tzdata && adduser -D -u 1000 lodestone && mkdir /data && chown lodestone /data
+COPY lodestone-panel /usr/local/bin/lodestone-panel
+USER lodestone
+ENV LODESTONE_DATA_DIR=/data LODESTONE_LISTEN=:8480
+VOLUME /data
+EXPOSE 8480
+ENTRYPOINT ["lodestone-panel"]

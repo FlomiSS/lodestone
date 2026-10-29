@@ -1,0 +1,39 @@
+{
+  "name": "lodestone-web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3100",
+    "build": "next build",
+    "typecheck": "tsc --noEmit",
+    "demo": "node demo/server.mjs"
+  },
+  "dependencies": {
+    "@codemirror/commands": "^6.8.0",
+    "@codemirror/lang-json": "^6.0.1",
+    "@codemirror/lang-markdown": "^6.3.1",
+    "@codemirror/lang-xml": "^6.1.0",
+    "@codemirror/lang-yaml": "^6.1.2",
+    "@codemirror/language": "^6.10.8",
+    "@codemirror/legacy-modes": "^6.4.2",
+    "@codemirror/search": "^6.5.8",
+    "@codemirror/state": "^6.5.2",
+    "@codemirror/view": "^6.36.2",
+    "@lezer/highlight": "^1.2.1",
+    "lucide-react": "^0.468.0",
+    "next": "^15.1.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "swr": "^2.2.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.16",
+    "typescript": "^5.7.0",
+    "ws": "^8.22.0"
+  }
+}

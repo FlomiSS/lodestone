@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <defs>
+    <symbol id="mark" viewBox="0 0 32 32">
+      <rect width="32" height="32" rx="8" fill="#4f46e5"/>
+      <path d="M16 5l3.2 9.3L28 16l-8.8 1.7L16 27l-3.2-9.3L4 16l8.8-1.7z" fill="#fff"/>
+    </symbol>
+  </defs>
+  <use href="#mark"/>
+</svg>

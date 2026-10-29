@@ -1,0 +1,57 @@
+# Lodestone: Panel + ein Node auf derselben Maschine.
+#   cp .env.example .env   (Werte anpassen, Secrets erzeugen)   →   docker compose up -d --build
+# Weitere Maschinen bekommen nur den Node (siehe docs/nodes.md) und werden im Panel unter „Nodes“ eingetragen.
+services:
+  panel:
+    build:
+      context: .
+      dockerfile: Dockerfile.panel
+    image: lodestone-panel:local
+    restart: unless-stopped
+    ports:
+      - "${LODESTONE_PANEL_PORT:-8480}:8480"
+    environment:
+      LODESTONE_ADMIN_USER: ${LODESTONE_ADMIN_USER:-admin}
+      LODESTONE_ADMIN_PASSWORD: ${LODESTONE_ADMIN_PASSWORD:?Setze LODESTONE_ADMIN_PASSWORD in .env}
+      LODESTONE_NODE_URL: http://node:8480
+      LODESTONE_NODE_TOKEN: ${LODESTONE_NODE_TOKEN:?Setze LODESTONE_NODE_TOKEN in .env (mindestens 24 Zeichen)}
+      LODESTONE_NODE_NAME: local
+      LODESTONE_NODE_PUBLIC_HOST: ${LODESTONE_PUBLIC_HOST:-}
+      LODESTONE_SECURE_COOKIES: ${LODESTONE_SECURE_COOKIES:-false}
+      LODESTONE_TRUST_PROXY: ${LODESTONE_TRUST_PROXY:-false}
+    volumes:
+      - panel-data:/data
+    depends_on:
+      - node
+
+  node:
+    build:
+      context: .
+      dockerfile: Dockerfile.node
+    image: lodestone-node:local
+    restart: unless-stopped
+    # Der Daemon braucht Zugriff auf Docker. Die Gruppe ist die des Sockets (stat -c %g /var/run/docker.sock).
+    user: "1000:1000"
+    group_add:
+      - "${DOCKER_GID:-999}"
+    environment:
+      LODESTONE_NODE_TOKEN: ${LODESTONE_NODE_TOKEN}
+      LODESTONE_NODE_DATA_DIR: ${LODESTONE_DATA:-/srv/lodestone}
+      LODESTONE_NODE_PUBLIC_HOST: ${LODESTONE_PUBLIC_HOST:-}
+      LODESTONE_NODE_PORT_RANGE: ${LODESTONE_PORT_RANGE:-25565-25999}
+      LODESTONE_NODE_CONTAINER_USER: "1000:1000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Muss auf Host und im Container derselbe Pfad sein: Docker bindet die Serverordner über den Pfad des Hosts ein.
+      - ${LODESTONE_DATA:-/srv/lodestone}:${LODESTONE_DATA:-/srv/lodestone}
+    networks:
+      - default
+      - lodestone
+
+volumes:
+  panel-data:
+
+networks:
+  # In diesem Netz laufen die Minecraft-Server; der Node ist dabei, um sie abfragen zu können.
+  lodestone:
+    name: lodestone

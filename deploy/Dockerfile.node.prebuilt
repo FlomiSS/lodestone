@@ -1,0 +1,6 @@
+FROM alpine:3.22
+RUN apk add --no-cache ca-certificates tzdata
+COPY lodestone-node /usr/local/bin/lodestone-node
+ENV LODESTONE_NODE_LISTEN=0.0.0.0:8480
+EXPOSE 8480
+ENTRYPOINT ["lodestone-node"]
