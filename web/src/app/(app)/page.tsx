@@ -136,7 +136,7 @@ function NewProjectDialog({ open, onClose, onCreated }: { open: boolean; onClose
   }
 
   const options = [
-    { id: "server" as const, icon: ServerIcon, title: "Einzelner Server", text: "Ein Server: Paper, Purpur, Folia, Fabric, Vanilla oder Velocity." },
+    { id: "server" as const, icon: ServerIcon, title: "Einzelner Server", text: "Ein Server: Paper, Purpur, Folia, Fabric, NeoForge, Vanilla oder Velocity." },
     { id: "network" as const, icon: Network, title: "Netzwerk", text: "Velocity-Proxy mit mehreren Servern dahinter. Wird automatisch verbunden." },
   ];
 

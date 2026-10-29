@@ -66,7 +66,7 @@ Ohne diese Punkte wählen Fremde eher Pelican oder Pterodactyl.
 ## P3 – Langfristig
 
 - [ ] **Gruppen 2.0 (L).** Vorgewärmte Reserve-Instanzen, Skalierung nach TPS statt nur Spielerzahl, Welt-Vorlagen (bei jedem Start frisch aus der Vorlage), Party- und Warteschlangen-System, Lobby-Verteilung nach Auslastung.
-- [ ] **Neue Server-Arten über Beschreibungsdateien (L).** Software als YAML („Eggs“) statt im Code: Forge, NeoForge, Quilt, Waterfall/BungeeCord, Bedrock, später andere Spiele.
+- [ ] **Neue Server-Arten über Beschreibungsdateien (L).** Software als YAML („Eggs“) statt im Code: Forge, Quilt, Waterfall/BungeeCord, Bedrock, später andere Spiele.
 - [ ] **Offene Schnittstelle (M).** Dokumentierte REST-API (OpenAPI), Webhooks, ein Kommandozeilenprogramm `lodestonectl`, ein Terraform-Provider.
 - [ ] **Betrieb im größeren Maßstab (L).** Prometheus-Metriken und fertiges Grafana-Dashboard, PostgreSQL statt SQLite wählbar, Sicherung der Panel-Datenbank (Litestream), Hochverfügbarkeit des Panels.
 - [ ] **Anmeldung über Dritte (M).** OIDC/SSO (Authentik, Keycloak, Discord), LDAP.

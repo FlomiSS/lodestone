@@ -42,10 +42,21 @@ func fakeProviders(t *testing.T) (*Resolver, *httptest.Server) {
 	mux.HandleFunc("/fabric/v2/versions/game", func(w http.ResponseWriter, _ *http.Request) {
 		fmt.Fprint(w, `[{"version":"26.4-snapshot-6","stable":false},{"version":"1.21.8","stable":true}]`)
 	})
+	mux.HandleFunc("/neoforge/maven-metadata.xml", func(w http.ResponseWriter, _ *http.Request) {
+		fmt.Fprint(w, `<metadata><versioning><versions>
+<version>20.4.1-beta</version>
+<version>20.4.253</version>
+<version>21.1.265</version>
+<version>21.4.161</version>
+<version>26.3.0.99</version>
+<version>26.4.0-alpha.1</version>
+</versions></versioning></metadata>`)
+	})
+
 
 	server = httptest.NewServer(mux)
 	t.Cleanup(server.Close)
-	return &Resolver{HTTP: server.Client(), FillBase: server.URL, MojangManifest: server.URL + "/mojang/manifest", FabricMeta: server.URL + "/fabric", PurpurBase: server.URL + "/purpur"}, server
+	return &Resolver{HTTP: server.Client(), FillBase: server.URL, MojangManifest: server.URL + "/mojang/manifest", FabricMeta: server.URL + "/fabric", PurpurBase: server.URL + "/purpur", NeoForgeMaven: server.URL + "/neoforge"}, server
 }
 
 func TestPaperVersionsSortedWithoutPrereleases(t *testing.T) {
@@ -166,5 +177,87 @@ func TestVelocityJavaAndOrder(t *testing.T) {
 	ordered := velocityOrder([]string{"4.3.2-SNAPSHOT", "4.3.1", "3.5.1", "3.6.0-SNAPSHOT", "3.4.0"})
 	if ordered[0] != "3.5.1" || ordered[1] != "3.4.0" || ordered[2] != "4.3.2-SNAPSHOT" {
 		t.Errorf("Reihenfolge: %v", ordered)
+	}
+}
+
+
+func TestNeoForgeVersionsAndResolve(t *testing.T) {
+	resolver, server := fakeProviders(t)
+	ctx := context.Background()
+
+	// Versions: stabil
+	versions, err := resolver.Versions(ctx, NeoForge, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"26.3", "1.21.4", "1.21.1", "1.20.4"}
+	if fmt.Sprint(versions) != fmt.Sprint(want) {
+		t.Fatalf("NeoForge Versionen = %v, erwartet %v", versions, want)
+	}
+
+	// Versions: mit Vorabversionen
+	withPre, err := resolver.Versions(ctx, NeoForge, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantPre := []string{"26.4", "26.3", "1.21.4", "1.21.1", "1.20.4"}
+	if fmt.Sprint(withPre) != fmt.Sprint(wantPre) {
+		t.Fatalf("NeoForge mit Vorabversionen = %v, erwartet %v", withPre, wantPre)
+	}
+
+	// Resolve über Minecraft-Version
+	artifact, err := resolver.Resolve(ctx, NeoForge, "1.21.4")
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantURL := server.URL + "/neoforge/21.4.161/neoforge-21.4.161-installer.jar"
+	if artifact.URL != wantURL || artifact.FileName != "neoforge-21.4.161-installer.jar" {
+		t.Fatalf("Artifact = %+v, erwartet URL %s", artifact, wantURL)
+	}
+
+	// Resolve über direkte NeoForge-Version
+	direct, err := resolver.Resolve(ctx, NeoForge, "20.4.253")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if direct.FileName != "neoforge-20.4.253-installer.jar" {
+		t.Fatalf("Direct Artifact = %+v", direct)
+	}
+
+	// Resolve unbekannte Version
+	if _, err := resolver.Resolve(ctx, NeoForge, "1.12.2"); err != ErrNotFound {
+		t.Fatalf("erwartet ErrNotFound, erhalten %v", err)
+	}
+}
+
+func TestNeoForgeToMinecraft(t *testing.T) {
+	cases := map[string]string{
+		"20.4.253":   "1.20.4",
+		"21.1.265":   "1.21.1",
+		"21.0.167":   "1.21",
+		"21.4.161":   "1.21.4",
+		"26.1.2.125": "26.1.2",
+		"26.3.0.99":  "26.3",
+		"1.21.4":     "1.21.4",
+		"26.3":       "26.3",
+	}
+	for input, want := range cases {
+		if got := NeoForgeToMinecraft(input); got != want {
+			t.Errorf("NeoForgeToMinecraft(%q) = %q, erwartet %q", input, got, want)
+		}
+	}
+}
+
+func TestNeoForgeJavaMajor(t *testing.T) {
+	resolver, _ := fakeProviders(t)
+	ctx := context.Background()
+	if got := resolver.JavaMajor(ctx, NeoForge, "21.4.161"); got != 21 {
+		t.Errorf("NeoForge 21.4.161: Java %d, erwartet 21", got)
+	}
+	if got := resolver.JavaMajor(ctx, NeoForge, "20.4.253"); got != 17 {
+		t.Errorf("NeoForge 20.4.253: Java %d, erwartet 17", got)
+	}
+	if got := resolver.JavaMajor(ctx, NeoForge, "26.3.0.99"); got != 25 {
+		t.Errorf("NeoForge 26.3.0.99: Java %d, erwartet 25", got)
 	}
 }

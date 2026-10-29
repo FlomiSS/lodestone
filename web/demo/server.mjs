@@ -329,13 +329,14 @@ async function api(req, res, url) {
   if (a === "nodes") return send(res, method === "GET" ? 200 : 201, method === "GET" ? nodes : nodes[0]);
   if (a === "software") {
     if (b && c === "versions") {
-      return send(res, 200, b === "velocity" ? ["3.5.1", "3.4.0", "4.3.1"] : b === "fabric" ? ["1.21.4", "1.21.3", "1.20.6"] : ["26.3", "26.2", "1.21.11", "1.21.10", "1.21.4"]);
+      return send(res, 200, b === "velocity" ? ["3.5.1", "3.4.0", "4.3.1"] : b === "fabric" ? ["1.21.4", "1.21.3", "1.20.6"] : b === "neoforge" ? ["1.21.4", "1.21.3", "1.21.1", "1.20.4"] : ["26.3", "26.2", "1.21.11", "1.21.10", "1.21.4"]);
     }
     return send(res, 200, [
       { id: "paper", name: "Paper", kind: "server", extensions: "plugins", defaultPort: 25565 },
       { id: "purpur", name: "Purpur", kind: "server", extensions: "plugins", defaultPort: 25565 },
       { id: "folia", name: "Folia", kind: "server", extensions: "plugins", defaultPort: 25565 },
       { id: "fabric", name: "Fabric", kind: "server", extensions: "mods", defaultPort: 25565 },
+      { id: "neoforge", name: "NeoForge", kind: "server", extensions: "mods", defaultPort: 25565 },
       { id: "vanilla", name: "Vanilla", kind: "server", extensions: "none", defaultPort: 25565 },
       { id: "velocity", name: "Velocity", kind: "proxy", extensions: "plugins", defaultPort: 25565 },
     ]);

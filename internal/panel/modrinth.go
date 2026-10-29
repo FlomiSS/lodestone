@@ -287,6 +287,8 @@ func loadersFor(id string) []string {
 		return []string{"folia"}
 	case "fabric":
 		return []string{"fabric"}
+	case "neoforge":
+		return []string{"neoforge", "forge"}
 	case "velocity":
 		return []string{"velocity"}
 	}
@@ -296,7 +298,7 @@ func loadersFor(id string) []string {
 // addonDir sagt, wohin Erweiterungen einer Software gehören.
 func addonDir(id string) string {
 	switch id {
-	case "fabric":
+	case "fabric", "neoforge":
 		return "mods"
 	case "vanilla":
 		return ""

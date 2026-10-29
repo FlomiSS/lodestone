@@ -8,6 +8,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"encoding/xml"
 	"errors"
 	"fmt"
 	"hash"
@@ -31,6 +32,7 @@ const (
 	Purpur   ID = "purpur"
 	Vanilla  ID = "vanilla"
 	Fabric   ID = "fabric"
+	NeoForge ID = "neoforge"
 	Velocity ID = "velocity"
 )
 
@@ -67,12 +69,14 @@ type Info struct {
 }
 
 const javaStartup = "exec java -Xms{{MEMORY}}M -Xmx{{MEMORY}}M -XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=200 -XX:+DisableExplicitGC -Dterminal.jline=false -Dterminal.ansi=true -jar {{JAR}}"
+const neoForgeStartup = "if [ ! -f run.sh ]; then java -jar {{JAR}} --installServer && if [ -f run.sh ]; then sed -i 's/^java/exec java/' run.sh 2>/dev/null || true; fi; fi; echo '-Xms{{MEMORY}}M -Xmx{{MEMORY}}M -XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=200 -XX:+DisableExplicitGC -Dterminal.jline=false -Dterminal.ansi=true' > user_jvm_args.txt; exec sh run.sh nogui"
 
 var catalog = []Info{
 	{ID: Paper, Name: "Paper", Kind: KindServer, Extensions: ExtPlugins, DefaultPort: 25565, Startup: javaStartup + " nogui", StopCommand: "stop", ReadyPattern: `Done \(`},
 	{ID: Purpur, Name: "Purpur", Kind: KindServer, Extensions: ExtPlugins, DefaultPort: 25565, Startup: javaStartup + " nogui", StopCommand: "stop", ReadyPattern: `Done \(`},
 	{ID: Folia, Name: "Folia", Kind: KindServer, Extensions: ExtPlugins, DefaultPort: 25565, Startup: javaStartup + " nogui", StopCommand: "stop", ReadyPattern: `Done \(`},
 	{ID: Fabric, Name: "Fabric", Kind: KindServer, Extensions: ExtMods, DefaultPort: 25565, Startup: javaStartup + " nogui", StopCommand: "stop", ReadyPattern: `Done \(`},
+	{ID: NeoForge, Name: "NeoForge", Kind: KindServer, Extensions: ExtMods, DefaultPort: 25565, Startup: neoForgeStartup, StopCommand: "stop", ReadyPattern: `Done \(`},
 	{ID: Vanilla, Name: "Vanilla", Kind: KindServer, Extensions: ExtNone, DefaultPort: 25565, Startup: javaStartup + " nogui", StopCommand: "stop", ReadyPattern: `Done \(`},
 	{ID: Velocity, Name: "Velocity", Kind: KindProxy, Extensions: ExtPlugins, DefaultPort: 25565, Startup: javaStartup, StopCommand: "end", ReadyPattern: `Done \(|Listening on`},
 }
@@ -109,6 +113,7 @@ type Resolver struct {
 	MojangManifest string
 	FabricMeta     string
 	PurpurBase     string
+	NeoForgeMaven  string
 }
 
 // NewResolver nutzt die öffentlichen Adressen der Anbieter.
@@ -119,6 +124,7 @@ func NewResolver() *Resolver {
 		MojangManifest: "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json",
 		FabricMeta:     "https://meta.fabricmc.net",
 		PurpurBase:     "https://api.purpurmc.org",
+		NeoForgeMaven:  "https://maven.neoforged.net/releases/net/neoforged/neoforge",
 	}
 }
 
@@ -140,6 +146,26 @@ func (r *Resolver) getJSON(ctx context.Context, address string, into any) error 
 		return fmt.Errorf("%s antwortet mit Status %d", request.URL.Host, response.StatusCode)
 	}
 	return json.NewDecoder(io.LimitReader(response.Body, 64<<20)).Decode(into)
+}
+
+func (r *Resolver) getXML(ctx context.Context, address string, into any) error {
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, address, nil)
+	if err != nil {
+		return err
+	}
+	request.Header.Set("User-Agent", "Lodestone")
+	response, err := r.HTTP.Do(request)
+	if err != nil {
+		return err
+	}
+	defer response.Body.Close()
+	if response.StatusCode == http.StatusNotFound {
+		return ErrNotFound
+	}
+	if response.StatusCode != http.StatusOK {
+		return fmt.Errorf("%s antwortet mit Status %d", request.URL.Host, response.StatusCode)
+	}
+	return xml.NewDecoder(io.LimitReader(response.Body, 64<<20)).Decode(into)
 }
 
 // ErrNotFound bedeutet, dass es die gewünschte Version nicht gibt.
@@ -196,6 +222,28 @@ func (r *Resolver) Versions(ctx context.Context, id ID, prerelease bool) ([]stri
 				versions = append(versions, game.Version)
 			}
 		}
+		return versions, nil
+	case NeoForge:
+		var meta struct {
+			Versioning struct {
+				Versions []string `xml:"versions>version"`
+			} `xml:"versioning"`
+		}
+		if err := r.getXML(ctx, r.NeoForgeMaven+"/maven-metadata.xml", &meta); err != nil {
+			return nil, err
+		}
+		seen := map[string]bool{}
+		for _, v := range meta.Versioning.Versions {
+			if !prerelease && isPrerelease(v) {
+				continue
+			}
+			mc := NeoForgeToMinecraft(v)
+			if mc != "" && !seen[mc] {
+				seen[mc] = true
+				versions = append(versions, mc)
+			}
+		}
+		sort.Slice(versions, func(i, j int) bool { return CompareVersions(versions[i], versions[j]) > 0 })
 		return versions, nil
 	default:
 		return nil, fmt.Errorf("unbekannte Software: %s", id)
@@ -276,6 +324,35 @@ func numericParts(version string) []int {
 	return parts
 }
 
+// NeoForgeToMinecraft übersetzt eine NeoForge-Version (z. B. 21.4.161 oder 26.1.2.125) in die zugehörige
+// Minecraft-Spielversion (1.21.4 bzw. 26.1.2). Ist version schon eine Minecraft-Version, bleibt sie unverändert.
+func NeoForgeToMinecraft(version string) string {
+	parts := numericParts(version)
+	if len(parts) == 0 {
+		return version
+	}
+	if parts[0] == 20 || parts[0] == 21 {
+		minor := 0
+		if len(parts) > 1 {
+			minor = parts[1]
+		}
+		if minor == 0 {
+			return fmt.Sprintf("1.%d", parts[0])
+		}
+		return fmt.Sprintf("1.%d.%d", parts[0], minor)
+	}
+	if parts[0] >= 26 {
+		if len(parts) > 2 && parts[2] > 0 {
+			return fmt.Sprintf("%d.%d.%d", parts[0], parts[1], parts[2])
+		}
+		if len(parts) > 1 {
+			return fmt.Sprintf("%d.%d", parts[0], parts[1])
+		}
+		return fmt.Sprintf("%d", parts[0])
+	}
+	return version
+}
+
 // ---------------------------------------------------------------- Auflösen
 
 // Resolve findet die Download-Datei zu einer Version.
@@ -329,6 +406,45 @@ func (r *Resolver) Resolve(ctx context.Context, id ID, version string) (Artifact
 		}
 		address := fmt.Sprintf("%s/v2/versions/loader/%s/%s/%s/server/jar", r.FabricMeta, url.PathEscape(version), loader, installer)
 		return Artifact{URL: address, FileName: fmt.Sprintf("fabric-server-mc.%s-loader.%s-launcher.%s.jar", version, loader, installer)}, nil
+	case NeoForge:
+		var meta struct {
+			Versioning struct {
+				Versions []string `xml:"versions>version"`
+			} `xml:"versioning"`
+		}
+		if err := r.getXML(ctx, r.NeoForgeMaven+"/maven-metadata.xml", &meta); err != nil {
+			return Artifact{}, err
+		}
+		var target string
+		for _, v := range meta.Versioning.Versions {
+			if v == version {
+				target = v
+				break
+			}
+		}
+		if target == "" {
+			for _, v := range meta.Versioning.Versions {
+				if NeoForgeToMinecraft(v) == version && !isPrerelease(v) {
+					if target == "" || CompareVersions(v, target) > 0 {
+						target = v
+					}
+				}
+			}
+		}
+		if target == "" {
+			for _, v := range meta.Versioning.Versions {
+				if NeoForgeToMinecraft(v) == version {
+					if target == "" || CompareVersions(v, target) > 0 {
+						target = v
+					}
+				}
+			}
+		}
+		if target == "" {
+			return Artifact{}, ErrNotFound
+		}
+		address := fmt.Sprintf("%s/%s/neoforge-%s-installer.jar", r.NeoForgeMaven, url.PathEscape(target), url.PathEscape(target))
+		return Artifact{URL: address, FileName: fmt.Sprintf("neoforge-%s-installer.jar", target)}, nil
 	}
 	return Artifact{}, fmt.Errorf("unbekannte Software: %s", id)
 }
@@ -399,10 +515,14 @@ func (r *Resolver) JavaMajor(ctx context.Context, id ID, version string) int {
 		}
 		return 21
 	}
-	if detail, err := r.versionDetail(ctx, version); err == nil && detail.JavaVersion.MajorVersion > 0 {
+	mc := version
+	if id == NeoForge {
+		mc = NeoForgeToMinecraft(version)
+	}
+	if detail, err := r.versionDetail(ctx, mc); err == nil && detail.JavaVersion.MajorVersion > 0 {
 		return detail.JavaVersion.MajorVersion
 	}
-	return FallbackJava(version)
+	return FallbackJava(mc)
 }
 
 // FallbackJava schätzt die Java-Version aus der Minecraft-Version.

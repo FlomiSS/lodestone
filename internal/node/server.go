@@ -202,6 +202,7 @@ func (s *Server) install(ctx context.Context) error {
 	if err := s.m.sw.Download(ctx, artifact, filepath.Join(s.dir, "data", jarName)); err != nil {
 		return fmt.Errorf("Download fehlgeschlagen: %w", err)
 	}
+	_ = s.fs.Remove("run.sh")
 	if info.Kind == software.KindServer && spec.EULA {
 		if err := s.writeText("eula.txt", "# Bestätigt im Lodestone-Panel (https://aka.ms/MinecraftEULA)\neula=true\n"); err != nil {
 			return err

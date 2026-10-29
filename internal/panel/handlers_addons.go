@@ -11,14 +11,18 @@ import (
 	"time"
 
 	"github.com/lodestone-mc/lodestone/internal/node"
+	"github.com/lodestone-mc/lodestone/internal/software"
 )
 
 var errAlreadyInstalled = errors.New("ist schon installiert")
 
 // gameVersionFor liefert die Spielversion, nach der Modrinth gefiltert wird. Velocity-Plugins hängen nicht an einer.
-func gameVersionFor(software, version string) string {
-	if software == "velocity" {
+func gameVersionFor(softwareName, version string) string {
+	if softwareName == "velocity" {
 		return ""
+	}
+	if softwareName == "neoforge" {
+		return software.NeoForgeToMinecraft(version)
 	}
 	return version
 }

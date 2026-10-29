@@ -60,7 +60,7 @@ function ServerView() {
   const rank = roleRank[myRole];
   const view = server.view;
   const state = view?.state;
-  const extensions = server.software === "fabric" ? "Mods" : server.software === "vanilla" ? null : "Plugins";
+  const extensions = server.software === "fabric" || server.software === "neoforge" ? "Mods" : server.software === "vanilla" ? null : "Plugins";
 
   const entries: Entry[] = [
     { id: "console", label: "Konsole", icon: Terminal },

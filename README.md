@@ -17,7 +17,7 @@ Browser ──►  Panel (Go, SQLite, eingebettete Next.js-Oberfläche)  ──H
 
 - **Projekte:** ein einzelner Server oder ein **Netzwerk** (Velocity + Server dahinter). Mitglieder mit Rollen
   *Betrachter, Operator, Admin, Eigentümer* pro Projekt; globale Administratoren sehen alles
-- **Server-Arten:** Paper, Purpur, Folia, Fabric, Vanilla, Velocity – Version, Download mit Prüfsumme und Java-Version
+- **Server-Arten:** Paper, Purpur, Folia, Fabric, NeoForge, Vanilla, Velocity – Version, Download mit Prüfsumme und Java-Version
   werden automatisch bestimmt
 - **Konsole live** (Websocket, mit Verlauf und ANSI-Farben), Start/Stopp/Neustart/Kill, CPU-/RAM-Anzeige
 - **Dateien** mit Editor und Syntax-Highlight (JSON, YAML, TOML, XML, Properties, Markdown …), Upload per Drag & Drop,
