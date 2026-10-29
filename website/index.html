@@ -167,8 +167,8 @@
         <div class="quickstart-box">
           <div class="quickstart-tabs">
             <button class="qs-tab active" id="tab-auto" onclick="switchTab('auto')">Auto-Installer (Empfohlen)</button>
-            <button class="qs-tab" id="tab-compose" onclick="switchTab('compose')">Docker Compose (Git)</button>
-            <button class="qs-tab" id="tab-release" onclick="switchTab('release')">Prebuilt Images</button>
+            <button class="qs-tab" id="tab-compose" onclick="switchTab('compose')">Docker Compose</button>
+            <button class="qs-tab" id="tab-yaml" onclick="switchTab('yaml')">docker-compose.yml</button>
             <button class="qs-tab" id="tab-update" onclick="switchTab('update')">Auto-Updates</button>
           </div>
 
@@ -185,36 +185,105 @@
 <span class="code-comment"># ✓ Startet die Container und gibt Zugangsdaten im Terminal aus</span></code></pre>
           </div>
 
-          <!-- Tab 2: Compose Git -->
+          <!-- Tab 2: Compose Quickstart -->
           <div class="qs-code-content" id="content-compose" style="display: none;">
-            <pre><code><span class="code-comment"># 1. Repository klonen</span>
-<span class="code-cmd">git clone</span> <span class="code-arg">https://github.com/Henny263462/lodestone.git</span>
-<span class="code-cmd">cd</span> lodestone
+            <div class="qs-toolbar">
+              <span class="qs-toolbar-title">Bereitstellung via Docker Compose (Prebuilt Images &amp; Watchtower)</span>
+              <div class="qs-toolbar-actions">
+                <a class="btn-copy" href="docker-compose.yml" download style="text-decoration: none;">docker-compose.yml ↓</a>
+                <a class="btn-copy" href=".env.example" download style="text-decoration: none;">.env.example ↓</a>
+              </div>
+            </div>
+            <pre><code><span class="code-comment"># 1. Compose-Datei &amp; Konfiguration direkt von der Website laden:</span>
+<span class="code-cmd">curl</span> -fsSL https://henny263462.github.io/lodestone/docker-compose.yml -o docker-compose.yml
+<span class="code-cmd">curl</span> -fsSL https://henny263462.github.io/lodestone/.env.example -o .env
 
-<span class="code-comment"># 2. Konfiguration anlegen &amp; Secrets eintragen</span>
-<span class="code-cmd">cp</span> .env.example .env
-<span class="code-comment"># Trage LODESTONE_ADMIN_PASSWORD und DOCKER_GID in .env ein</span>
+<span class="code-comment"># 2. .env anpassen (mindestens LODESTONE_ADMIN_PASSWORD und LODESTONE_NODE_TOKEN eintragen)</span>
+<span class="code-cmd">nano</span> .env
 
-<span class="code-comment"># 3. Datenverzeichnis vorbereiten</span>
+<span class="code-comment"># 3. Datenverzeichnis für Minecraft-Server vorbereiten (Besitzer UID/GID 1000)</span>
 <span class="code-cmd">sudo mkdir</span> -p /srv/lodestone &amp;&amp; <span class="code-cmd">sudo chown</span> 1000:1000 /srv/lodestone
 
-<span class="code-comment"># 4. Stack starten</span>
-<span class="code-cmd">docker compose</span> up -d --build
+<span class="code-comment"># 4. Lodestone starten (lädt fertige Images von ghcr.io)</span>
+<span class="code-cmd">docker compose</span> up -d
 
 <span class="code-comment"># Öffne http://&lt;Server-IP&gt;:8480 im Browser</span></code></pre>
           </div>
 
-          <!-- Tab 3: Prebuilt Images -->
-          <div class="qs-code-content" id="content-release" style="display: none;">
-            <pre><code><span class="code-comment"># Schnelle Bereitstellung ohne Source-Build via GitHub Container Registry</span>
-<span class="code-cmd">curl</span> -LO https://github.com/Henny263462/lodestone/releases/latest/download/docker-compose.release.yml
-<span class="code-cmd">curl</span> -L  https://github.com/Henny263462/lodestone/releases/latest/download/.env.example -o .env
+          <!-- Tab 3: docker-compose.yml YAML Full View -->
+          <div class="qs-code-content" id="content-yaml" style="display: none;">
+            <div class="qs-toolbar">
+              <span class="qs-toolbar-title">docker-compose.yml (Offizieller Stack mit Auto-Update)</span>
+              <div class="qs-toolbar-actions">
+                <button class="btn-copy" id="copy-yaml-btn" onclick="copyYaml()">YAML kopieren</button>
+                <a class="btn-copy" href="docker-compose.yml" download style="text-decoration: none;">Datei herunterladen</a>
+              </div>
+            </div>
+            <pre><code id="compose-yaml-text"><span class="code-comment"># Lodestone – Modernes Hosting-Panel &amp; Node für Minecraft</span>
+<span class="code-comment"># https://henny263462.github.io/lodestone/</span>
+<span class="code-cmd">services:</span>
+  <span class="code-arg">panel:</span>
+    image: ghcr.io/henny263462/lodestone-panel:latest
+    restart: unless-stopped
+    ports:
+      - "${LODESTONE_PANEL_PORT:-8480}:8480"
+    environment:
+      LODESTONE_ADMIN_USER: ${LODESTONE_ADMIN_USER:-admin}
+      LODESTONE_ADMIN_PASSWORD: ${LODESTONE_ADMIN_PASSWORD:?Setze LODESTONE_ADMIN_PASSWORD in .env}
+      LODESTONE_NODE_URL: http://node:8480
+      LODESTONE_NODE_TOKEN: ${LODESTONE_NODE_TOKEN:?Setze LODESTONE_NODE_TOKEN in .env}
+      LODESTONE_NODE_NAME: local
+      LODESTONE_NODE_PUBLIC_HOST: ${LODESTONE_PUBLIC_HOST:-}
+      LODESTONE_SECURE_COOKIES: ${LODESTONE_SECURE_COOKIES:-false}
+      LODESTONE_TRUST_PROXY: ${LODESTONE_TRUST_PROXY:-false}
+    volumes:
+      - panel-data:/data
+    labels:
+      - "com.centurylinklabs.watchtower.scope=lodestone"
+    depends_on:
+      - node
 
-<span class="code-comment"># .env anpassen &amp; Verzeichnis anlegen:</span>
-<span class="code-cmd">sudo mkdir</span> -p /srv/lodestone &amp;&amp; <span class="code-cmd">sudo chown</span> 1000:1000 /srv/lodestone
+  <span class="code-arg">node:</span>
+    image: ghcr.io/henny263462/lodestone-node:latest
+    restart: unless-stopped
+    user: "1000:1000"
+    group_add:
+      - "${DOCKER_GID:-999}"
+    environment:
+      LODESTONE_NODE_TOKEN: ${LODESTONE_NODE_TOKEN}
+      LODESTONE_NODE_DATA_DIR: ${LODESTONE_DATA:-/srv/lodestone}
+      LODESTONE_NODE_PUBLIC_HOST: ${LODESTONE_PUBLIC_HOST:-}
+      LODESTONE_NODE_PORT_RANGE: ${LODESTONE_PORT_RANGE:-25565-25999}
+      LODESTONE_NODE_CONTAINER_USER: "1000:1000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${LODESTONE_DATA:-/srv/lodestone}:${LODESTONE_DATA:-/srv/lodestone}
+    labels:
+      - "com.centurylinklabs.watchtower.scope=lodestone"
+    networks:
+      - default
+      - lodestone
 
-<span class="code-comment"># Container starten:</span>
-<span class="code-cmd">docker compose</span> -f docker-compose.release.yml up -d</code></pre>
+  <span class="code-arg">watchtower:</span>
+    image: containrrr/watchtower:latest
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      WATCHTOWER_CLEANUP: "true"
+      WATCHTOWER_POLL_INTERVAL: ${WATCHTOWER_POLL_INTERVAL:-3600}
+      WATCHTOWER_SCOPE: "lodestone"
+    labels:
+      - "com.centurylinklabs.watchtower.scope=lodestone"
+    networks:
+      - default
+
+<span class="code-cmd">volumes:</span>
+  panel-data:
+
+<span class="code-cmd">networks:</span>
+  lodestone:
+    name: lodestone</code></pre>
           </div>
 
           <!-- Tab 4: Auto Updates -->
@@ -288,6 +357,10 @@
       <div class="footer-links">
         <a href="https://github.com/Henny263462/lodestone" target="_blank" rel="noreferrer">GitHub Repository</a>
         <span>·</span>
+        <a href="docker-compose.yml" download>docker-compose.yml</a>
+        <span>·</span>
+        <a href=".env.example" download>.env.example</a>
+        <span>·</span>
         <a href="https://github.com/Henny263462/lodestone/blob/main/LICENSE" target="_blank" rel="noreferrer">MIT Lizenz</a>
         <span>·</span>
         <a href="https://github.com/Henny263462/lodestone/issues" target="_blank" rel="noreferrer">Fehler melden</a>
@@ -301,7 +374,7 @@
 
   <script>
     function switchTab(tab) {
-      ['auto', 'compose', 'release', 'update'].forEach(t => {
+      ['auto', 'compose', 'yaml', 'update'].forEach(t => {
         const btn = document.getElementById('tab-' + t);
         const content = document.getElementById('content-' + t);
         if (btn) btn.classList.toggle('active', t === tab);
@@ -316,6 +389,17 @@
         btn.textContent = 'Kopiert!';
         setTimeout(() => { btn.textContent = 'Kopieren'; }, 2000);
       });
+    }
+
+    function copyYaml() {
+      const codeEl = document.getElementById('compose-yaml-text');
+      if (codeEl) {
+        navigator.clipboard.writeText(codeEl.textContent).then(() => {
+          const btn = document.getElementById('copy-yaml-btn');
+          btn.textContent = 'Kopiert!';
+          setTimeout(() => { btn.textContent = 'YAML kopieren'; }, 2000);
+        });
+      }
     }
   </script>
 

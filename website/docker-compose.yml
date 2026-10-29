@@ -1,0 +1,80 @@
+# ==============================================================================
+# Lodestone – Modernes Hosting-Panel & Node für Minecraft
+# Website:  https://henny263462.github.io/lodestone/
+# GitHub:   https://github.com/Henny263462/lodestone
+# ==============================================================================
+# Schnellstart:
+#   1. .env anlegen:
+#        cp .env.example .env
+#        (mindestens LODESTONE_ADMIN_PASSWORD und LODESTONE_NODE_TOKEN eintragen)
+#   2. Datenverzeichnis anlegen:
+#        sudo mkdir -p /srv/lodestone && sudo chown 1000:1000 /srv/lodestone
+#   3. Starten:
+#        docker compose up -d
+# ==============================================================================
+
+services:
+  panel:
+    image: ghcr.io/henny263462/lodestone-panel:${LODESTONE_VERSION:-latest}
+    restart: unless-stopped
+    ports:
+      - "${LODESTONE_PANEL_PORT:-8480}:8480"
+    environment:
+      LODESTONE_ADMIN_USER: ${LODESTONE_ADMIN_USER:-admin}
+      LODESTONE_ADMIN_PASSWORD: ${LODESTONE_ADMIN_PASSWORD:?Setze LODESTONE_ADMIN_PASSWORD in .env}
+      LODESTONE_NODE_URL: http://node:8480
+      LODESTONE_NODE_TOKEN: ${LODESTONE_NODE_TOKEN:?Setze LODESTONE_NODE_TOKEN in .env (mindestens 24 Zeichen)}
+      LODESTONE_NODE_NAME: local
+      LODESTONE_NODE_PUBLIC_HOST: ${LODESTONE_PUBLIC_HOST:-}
+      LODESTONE_SECURE_COOKIES: ${LODESTONE_SECURE_COOKIES:-false}
+      LODESTONE_TRUST_PROXY: ${LODESTONE_TRUST_PROXY:-false}
+    volumes:
+      - panel-data:/data
+    labels:
+      - "com.centurylinklabs.watchtower.scope=lodestone"
+    depends_on:
+      - node
+
+  node:
+    image: ghcr.io/henny263462/lodestone-node:${LODESTONE_VERSION:-latest}
+    restart: unless-stopped
+    user: "1000:1000"
+    group_add:
+      - "${DOCKER_GID:-999}"
+    environment:
+      LODESTONE_NODE_TOKEN: ${LODESTONE_NODE_TOKEN}
+      LODESTONE_NODE_DATA_DIR: ${LODESTONE_DATA:-/srv/lodestone}
+      LODESTONE_NODE_PUBLIC_HOST: ${LODESTONE_PUBLIC_HOST:-}
+      LODESTONE_NODE_PORT_RANGE: ${LODESTONE_PORT_RANGE:-25565-25999}
+      LODESTONE_NODE_CONTAINER_USER: "1000:1000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${LODESTONE_DATA:-/srv/lodestone}:${LODESTONE_DATA:-/srv/lodestone}
+    labels:
+      - "com.centurylinklabs.watchtower.scope=lodestone"
+    networks:
+      - default
+      - lodestone
+
+  # Automatisches Update: Prüft auf neue Images auf ghcr.io
+  # und aktualisiert Lodestone ohne Datenverlust im laufenden Betrieb.
+  watchtower:
+    image: containrrr/watchtower:latest
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      WATCHTOWER_CLEANUP: "true"
+      WATCHTOWER_POLL_INTERVAL: ${WATCHTOWER_POLL_INTERVAL:-3600}
+      WATCHTOWER_SCOPE: "lodestone"
+    labels:
+      - "com.centurylinklabs.watchtower.scope=lodestone"
+    networks:
+      - default
+
+volumes:
+  panel-data:
+
+networks:
+  lodestone:
+    name: lodestone

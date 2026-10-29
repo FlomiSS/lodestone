@@ -56,13 +56,17 @@ cd "$INSTALL_DIR"
 
 # 4. Compose-Datei & Updater laden
 echo -e "${CYAN}[Info] Lade Docker Compose Konfiguration und Updater...${NC}"
+curl -fsSL https://henny263462.github.io/lodestone/docker-compose.yml -o docker-compose.yml 2>/dev/null || \
 curl -fsSL https://raw.githubusercontent.com/Henny263462/lodestone/main/deploy/docker-compose.release.yml -o docker-compose.yml
+
+curl -fsSL https://henny263462.github.io/lodestone/update.sh -o update.sh 2>/dev/null || \
 curl -fsSL https://raw.githubusercontent.com/Henny263462/lodestone/main/update.sh -o update.sh
 chmod +x update.sh
 
 # 5. .env Konfiguration generieren falls nicht vorhanden
 if [ ! -f .env ]; then
     echo -e "${CYAN}[Info] Erstelle neue Konfiguration (.env)...${NC}"
+    curl -fsSL https://henny263462.github.io/lodestone/.env.example -o .env.example 2>/dev/null || \
     curl -fsSL https://raw.githubusercontent.com/Henny263462/lodestone/main/.env.example -o .env.example
     cp .env.example .env
 
