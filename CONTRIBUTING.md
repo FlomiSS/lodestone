@@ -28,3 +28,6 @@ Die Oberfläche läuft zur Entwicklung auf Port 3100 und spricht mit einem Panel
 - Texte der Oberfläche und Kommentare sind auf Deutsch, Bezeichner im Code auf Englisch.
 
 Mit deinem Beitrag stimmst du zu, dass er unter der [MIT-Lizenz](LICENSE) veröffentlicht wird.
+## KI-Agenten
+
+Arbeiten Agenten oder Assistenten am Code, gelten [`AGENTS.md`](AGENTS.md) und die Leitfäden im Ordner [`agents/`](agents/README.md) (Design, Ablauf, Architektur, Arbeitsweise).
