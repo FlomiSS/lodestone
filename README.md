@@ -40,6 +40,16 @@ Browser ──►  Panel (Go, SQLite, eingebettete Next.js-Oberfläche)  ──H
   `voice_host` gesetzt
 - Server hinter dem Proxy sind **nicht** nach außen veröffentlicht, nur der Proxy (und der Voicechat-UDP-Port)
 
+## Schnellstart (1-Klick Installer für Linux)
+
+Auf einem Linux-Server (Ubuntu, Debian, Fedora, Arch etc.) als Root oder mit `sudo` ausführen:
+
+```bash
+curl -fsSL https://henny263462.github.io/lodestone/install.sh | sudo bash
+```
+
+Das Skript prüft/installiert Docker und Docker Compose, ermittelt die `DOCKER_GID`, generiert sichere Tokens & Passwörter, erstellt das Datenverzeichnis `/srv/lodestone` (1000:1000) und startet den Stack.
+
 ## Schnellstart mit fertigen Images
 
 ```bash
