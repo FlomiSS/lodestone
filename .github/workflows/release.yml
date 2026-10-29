@@ -1,9 +1,10 @@
-name: Release
+name: Docker Autobuild & Release
 
-# Beim Veröffentlichen eines Tags (z. B. v0.2.0) entstehen Docker-Images auf ghcr.io und ein GitHub-Release.
 on:
   push:
+    branches: [main]
     tags: ["v*"]
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -11,45 +12,78 @@ permissions:
 
 jobs:
   images:
+    name: Build & Push Docker Images (ghcr.io)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: docker/setup-qemu-action@v3
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Name in Kleinbuchstaben
+
+      - name: Convert Owner to Lowercase
         run: echo "OWNER=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_ENV"
-      - uses: docker/build-push-action@v6
+
+      - name: Generate Docker Tags
+        id: meta
+        run: |
+          REF="${{ github.ref }}"
+          if [[ "$REF" == refs/tags/* ]]; then
+            TAG="${REF#refs/tags/}"
+            echo "panel_tags=ghcr.io/${{ env.OWNER }}/lodestone-panel:latest,ghcr.io/${{ env.OWNER }}/lodestone-panel:${TAG}" >> $GITHUB_OUTPUT
+            echo "node_tags=ghcr.io/${{ env.OWNER }}/lodestone-node:latest,ghcr.io/${{ env.OWNER }}/lodestone-node:${TAG}" >> $GITHUB_OUTPUT
+          else
+            echo "panel_tags=ghcr.io/${{ env.OWNER }}/lodestone-panel:latest,ghcr.io/${{ env.OWNER }}/lodestone-panel:main,ghcr.io/${{ env.OWNER }}/lodestone-panel:${{ github.sha }}" >> $GITHUB_OUTPUT
+            echo "node_tags=ghcr.io/${{ env.OWNER }}/lodestone-node:latest,ghcr.io/${{ env.OWNER }}/lodestone-node:main,ghcr.io/${{ env.OWNER }}/lodestone-node:${{ github.sha }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build & Push lodestone-panel Image
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: Dockerfile.panel
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: |
-            ghcr.io/${{ env.OWNER }}/lodestone-panel:latest
-            ghcr.io/${{ env.OWNER }}/lodestone-panel:${{ github.ref_name }}
-      - uses: docker/build-push-action@v6
+          tags: ${{ steps.meta.outputs.panel_tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build & Push lodestone-node Image
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: Dockerfile.node
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: |
-            ghcr.io/${{ env.OWNER }}/lodestone-node:latest
-            ghcr.io/${{ env.OWNER }}/lodestone-node:${{ github.ref_name }}
+          tags: ${{ steps.meta.outputs.node_tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   release:
+    name: GitHub Release
     runs-on: ubuntu-latest
     needs: images
+    if: startsWith(github.ref, 'refs/tags/v')
     steps:
-      - uses: actions/checkout@v4
-      - uses: softprops/action-gh-release@v2
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
           files: |
             deploy/docker-compose.release.yml
             .env.example
+            update.sh
+            install.sh

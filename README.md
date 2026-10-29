@@ -50,6 +50,24 @@ curl -fsSL https://henny263462.github.io/lodestone/install.sh | sudo bash
 
 Das Skript prüft/installiert Docker und Docker Compose, ermittelt die `DOCKER_GID`, generiert sichere Tokens & Passwörter, erstellt das Datenverzeichnis `/srv/lodestone` (1000:1000) und startet den Stack.
 
+## Updates & Automatisierung
+
+Lodestone-Images werden bei jedem Push auf GitHub automatisch per GitHub Actions gebaut und auf der **GitHub Container Registry (ghcr.io)** bereitgestellt:
+- `ghcr.io/henny263462/lodestone-panel:latest`
+- `ghcr.io/henny263462/lodestone-node:latest`
+
+### Automatische Updates (Zero Maintenance)
+In der Release-Compose-Datei (`docker-compose.release.yml`) ist **Watchtower** integriert. Es prüft standardmäßig stündlich auf neue Images und startet Panel und Node im laufenden Betrieb neu – ohne dass Serverdaten oder Spieldateien verloren gehen.
+
+### Manuelles Update (1-Klick)
+```bash
+curl -fsSL https://henny263462.github.io/lodestone/update.sh | sudo bash
+```
+Oder direkt auf dem Server:
+```bash
+cd /opt/lodestone && sudo ./update.sh
+```
+
 ## Schnellstart mit fertigen Images
 
 ```bash

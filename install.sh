@@ -54,9 +54,11 @@ mkdir -p "$DATA_DIR"
 chown 1000:1000 "$DATA_DIR"
 cd "$INSTALL_DIR"
 
-# 4. Compose-Datei laden
-echo -e "${CYAN}[Info] Lade Docker Compose Konfiguration...${NC}"
+# 4. Compose-Datei & Updater laden
+echo -e "${CYAN}[Info] Lade Docker Compose Konfiguration und Updater...${NC}"
 curl -fsSL https://raw.githubusercontent.com/Henny263462/lodestone/main/deploy/docker-compose.release.yml -o docker-compose.yml
+curl -fsSL https://raw.githubusercontent.com/Henny263462/lodestone/main/update.sh -o update.sh
+chmod +x update.sh
 
 # 5. .env Konfiguration generieren falls nicht vorhanden
 if [ ! -f .env ]; then
@@ -82,7 +84,7 @@ if [ ! -f .env ]; then
 fi
 
 # 6. Container starten
-echo -e "${CYAN}[Info] Ziehe Images und starte Lodestone...${NC}"
+echo -e "${CYAN}[Info] Ziehe neueste Images von ghcr.io und starte Lodestone...${NC}"
 docker compose pull
 docker compose up -d
 
@@ -96,5 +98,7 @@ echo -e "Weboberfläche:    ${CYAN}http://${PUBLIC_HOST_CURRENT}:8480${NC}"
 echo -e "Benutzername:     ${BOLD}admin${NC}"
 echo -e "Passwort:         ${BOLD}${ADMIN_PASS_CURRENT}${NC}"
 echo -e "Verzeichnis:      ${BOLD}${INSTALL_DIR}${NC}"
-echo -e "Server-Dateien:   ${BOLD}${DATA_DIR}${NC}\n"
-echo -e "${CYAN}Befehl zum Prüfen: cd ${INSTALL_DIR} && docker compose ps${NC}"
+echo -e "Server-Dateien:   ${BOLD}${DATA_DIR}${NC}"
+echo -e "Auto-Updates:     ${GREEN}Aktiviert${NC} (Watchtower prüft stündlich auf neue Images)"
+echo -e "Manuelles Update: ${BOLD}cd ${INSTALL_DIR} && sudo ./update.sh${NC}\n"
+echo -e "${CYAN}Status prüfen:    cd ${INSTALL_DIR} && docker compose ps${NC}"

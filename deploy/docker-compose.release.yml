@@ -20,6 +20,8 @@ services:
       LODESTONE_TRUST_PROXY: ${LODESTONE_TRUST_PROXY:-false}
     volumes:
       - panel-data:/data
+    labels:
+      - "com.centurylinklabs.watchtower.scope=lodestone"
     depends_on:
       - node
 
@@ -38,9 +40,27 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ${LODESTONE_DATA:-/srv/lodestone}:${LODESTONE_DATA:-/srv/lodestone}
+    labels:
+      - "com.centurylinklabs.watchtower.scope=lodestone"
     networks:
       - default
       - lodestone
+
+  # Automatisches Update: Prüft auf neue Images auf ghcr.io
+  # und aktualisiert Lodestone ohne Datenverlust im laufenden Betrieb.
+  watchtower:
+    image: containrrr/watchtower:latest
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      WATCHTOWER_CLEANUP: "true"
+      WATCHTOWER_POLL_INTERVAL: ${WATCHTOWER_POLL_INTERVAL:-3600}
+      WATCHTOWER_SCOPE: "lodestone"
+    labels:
+      - "com.centurylinklabs.watchtower.scope=lodestone"
+    networks:
+      - default
 
 volumes:
   panel-data:

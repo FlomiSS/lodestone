@@ -266,6 +266,7 @@
             <button class="qs-tab active" id="tab-auto" onclick="switchTab('auto')">Auto-Installer (Empfohlen)</button>
             <button class="qs-tab" id="tab-compose" onclick="switchTab('compose')">Docker Compose (Git)</button>
             <button class="qs-tab" id="tab-release" onclick="switchTab('release')">Prebuilt Images</button>
+            <button class="qs-tab" id="tab-update" onclick="switchTab('update')">Auto-Updates</button>
           </div>
 
           <!-- Tab 1: Auto Installer -->
@@ -311,6 +312,20 @@
 
 <span class="code-comment"># Container starten:</span>
 <span class="code-cmd">docker compose</span> -f docker-compose.release.yml up -d</code></pre>
+          </div>
+
+          <!-- Tab 4: Auto Updates -->
+          <div class="qs-code-content" id="content-update" style="display: none;">
+            <pre><code><span class="code-comment"># Option 1: Vollautomatisch im Hintergrund (Zero-Maintenance)</span>
+<span class="code-comment"># GitHub Actions baut bei jedem Git-Push automatisch neue Images auf ghcr.io.</span>
+<span class="code-comment"># Der integrierte Watchtower-Dienst prüft stündlich und aktualisiert Lodestone</span>
+<span class="code-comment"># nahtlos im laufenden Betrieb ohne Datenverlust.</span>
+
+<span class="code-comment"># Option 2: Manuelles 1-Befehl-Update (jederzeit ausführbar)</span>
+<span class="code-cmd">curl</span> -fsSL https://henny263462.github.io/lodestone/update.sh <span class="code-arg">| sudo bash</span>
+
+<span class="code-comment"># Oder direkt im Installationsverzeichnis:</span>
+<span class="code-cmd">cd</span> /opt/lodestone &amp;&amp; <span class="code-cmd">sudo ./update.sh</span></code></pre>
           </div>
         </div>
       </div>
@@ -383,12 +398,12 @@
 
   <script>
     function switchTab(tab) {
-      document.getElementById('tab-auto').classList.toggle('active', tab === 'auto');
-      document.getElementById('tab-compose').classList.toggle('active', tab === 'compose');
-      document.getElementById('tab-release').classList.toggle('active', tab === 'release');
-      document.getElementById('content-auto').style.display = tab === 'auto' ? 'block' : 'none';
-      document.getElementById('content-compose').style.display = tab === 'compose' ? 'block' : 'none';
-      document.getElementById('content-release').style.display = tab === 'release' ? 'block' : 'none';
+      ['auto', 'compose', 'release', 'update'].forEach(t => {
+        const btn = document.getElementById('tab-' + t);
+        const content = document.getElementById('content-' + t);
+        if (btn) btn.classList.toggle('active', t === tab);
+        if (content) content.style.display = (t === tab) ? 'block' : 'none';
+      });
     }
 
     function copyInstall() {
