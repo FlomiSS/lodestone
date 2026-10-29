@@ -92,7 +92,7 @@ cd /opt/lodestone && sudo ./update.sh
 
 ```bash
 curl -LO https://github.com/Henny263462/lodestone/releases/latest/download/docker-compose.release.yml
-curl -L  https://github.com/Henny263462/lodestone/releases/latest/download/.env.example -o .env
+curl -L  https://github.com/Henny263462/lodestone/releases/latest/download/default.env.example -o .env
 # .env ausfüllen (siehe unten), Datenordner anlegen: mkdir -p /srv/lodestone && chown 1000:1000 /srv/lodestone
 docker compose -f docker-compose.release.yml up -d
 ```
