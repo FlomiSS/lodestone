@@ -491,32 +491,60 @@ async function api(req, res, url) {
       return send(res, 200, files[dir] ?? []);
     }
     if (c === "addons") {
-      if (d === "check") return send(res, 200, [
+      const isNeoForge = server.software === "neoforge";
+      if (d === "check") return send(res, 200, isNeoForge ? [
+        { file: "jei-1.21.4-neoforge-19.21.0.246.jar", dir: "mods", name: "Just Enough Items", current: "19.21.0.246", latest: "19.21.0.250", latestFile: "jei-1.21.4-neoforge-19.21.0.250.jar", known: true, updateAvailable: true },
+        { file: "voicechat-neoforge-1.21.4-2.6.27.jar", dir: "mods", name: "Simple Voice Chat", current: "2.6.27", known: true, updateAvailable: false },
+        { file: "Eigenbau-mod.jar", dir: "mods", name: "Eigenbau Mod", current: "1.0", known: false, updateAvailable: false },
+      ] : [
         { file: "LuckPerms-Bukkit-5.4.150.jar", dir: "plugins", name: "LuckPerms", current: "5.4.150", latest: "5.5.0", latestFile: "LuckPerms-Bukkit-5.5.0.jar", known: true, updateAvailable: true },
         { file: "voicechat-bukkit-2.6.27.jar", dir: "plugins", name: "Simple Voice Chat", current: "2.6.27", known: true, updateAvailable: false },
         { file: "Eigenbau.jar", dir: "plugins", name: "Eigenbau", current: "1.0", known: false, updateAvailable: false },
       ]);
-      if (d === "update") return send(res, 200, [{ file: "LuckPerms-Bukkit-5.4.150.jar", updated: true, to: "5.5.0" }]);
-      if (d === "details") return send(res, 200, [
+      if (d === "update") return send(res, 200, isNeoForge
+        ? [{ file: "jei-1.21.4-neoforge-19.21.0.246.jar", updated: true, to: "19.21.0.250" }]
+        : [{ file: "LuckPerms-Bukkit-5.4.150.jar", updated: true, to: "5.5.0" }]);
+      if (d === "details") return send(res, 200, isNeoForge ? [
+        { file: "jei-1.21.4-neoforge-19.21.0.246.jar", dir: "mods", known: true, projectId: "u6dDxAtlas", slug: "jei", title: "Just Enough Items (JEI)", description: "Zeigt Gegenstände und Rezepte an.", projectType: "mod", link: "https://modrinth.com/mod/jei", downloads: 80_000_000, sourceUrl: "https://github.com/mezz/JustEnoughItems", issuesUrl: "https://github.com/mezz/JustEnoughItems/issues", license: "MIT", versionId: "v-jei-1", versionNumber: "19.21.0.246", versionName: "19.21.0.246", versionType: "release", published: "2026-08-12T10:00:00Z" },
+        { file: "voicechat-neoforge-1.21.4-2.6.27.jar", dir: "mods", known: true, projectId: "9eGKb6K1", slug: "simple-voice-chat", title: "Simple Voice Chat", description: "Proximity-Voicechat in Minecraft.", projectType: "mod", link: "https://modrinth.com/plugin/simple-voice-chat", downloads: 25_000_000, license: "Custom", versionId: "v2", versionNumber: "2.6.27", versionName: "2.6.27", versionType: "release", published: "2026-09-30T10:00:00Z" },
+        { file: "Eigenbau-mod.jar", dir: "mods", known: false },
+      ] : [
         { file: "LuckPerms-Bukkit-5.4.150.jar", dir: "plugins", known: true, projectId: "Vebnzrzj", slug: "luckperms", title: "LuckPerms", description: "Ein Rechtesystem für Minecraft-Server.", projectType: "plugin", link: "https://modrinth.com/plugin/luckperms", downloads: 12_400_000, sourceUrl: "https://github.com/LuckPerms/LuckPerms", issuesUrl: "https://github.com/LuckPerms/LuckPerms/issues", license: "MIT", versionId: "v1", versionNumber: "5.4.150", versionName: "v5.4.150", versionType: "release", published: "2026-08-12T10:00:00Z" },
         { file: "voicechat-bukkit-2.6.27.jar", dir: "plugins", known: true, projectId: "9eGKb6K1", slug: "simple-voice-chat", title: "Simple Voice Chat", description: "Proximity-Voicechat in Minecraft.", projectType: "plugin", link: "https://modrinth.com/plugin/simple-voice-chat", downloads: 25_000_000, license: "Custom", versionId: "v2", versionNumber: "2.6.27", versionName: "2.6.27", versionType: "release", published: "2026-09-30T10:00:00Z" },
         { file: "Eigenbau.jar", dir: "plugins", known: false },
       ]);
-      if (d === "switch") return send(res, 200, { file: "LuckPerms-Bukkit-5.5.0.jar", from: "5.4.150", to: body.versionId });
-      return send(res, 200, [
+      if (d === "switch") return send(res, 200, isNeoForge
+        ? { file: "jei-1.21.4-neoforge-19.21.0.250.jar", from: "19.21.0.246", to: body.versionId }
+        : { file: "LuckPerms-Bukkit-5.5.0.jar", from: "5.4.150", to: body.versionId });
+      return send(res, 200, isNeoForge ? [
+        { file: "jei-1.21.4-neoforge-19.21.0.246.jar", dir: "mods", size: 1_200_000, modified: now() - 3 * 24 * HOUR, enabled: true, name: "Just Enough Items", version: "19.21.0.246", kind: "neoforge", sha1: "a" },
+        { file: "voicechat-neoforge-1.21.4-2.6.27.jar", dir: "mods", size: 2_100_000, modified: now() - 2 * 24 * HOUR, enabled: true, name: "Simple Voice Chat", version: "2.6.27", kind: "neoforge", sha1: "b" },
+        { file: "Eigenbau-mod.jar", dir: "mods", size: 90_000, modified: now() - 24 * HOUR, enabled: false, name: "Eigenbau Mod", version: "1.0", kind: "unknown", sha1: "c" },
+      ] : [
         { file: "LuckPerms-Bukkit-5.4.150.jar", dir: "plugins", size: 1_600_000, modified: now() - 3 * 24 * HOUR, enabled: true, name: "LuckPerms", version: "5.4.150", kind: "paper", sha1: "a" },
         { file: "voicechat-bukkit-2.6.27.jar", dir: "plugins", size: 2_100_000, modified: now() - 2 * 24 * HOUR, enabled: true, name: "Simple Voice Chat", version: "2.6.27", kind: "paper", sha1: "b" },
         { file: "Eigenbau.jar", dir: "plugins", size: 90_000, modified: now() - 24 * HOUR, enabled: false, name: "Eigenbau", version: "1.0", kind: "unknown", sha1: "c" },
       ]);
     }
     if (c === "modrinth") {
-      if (d === "search") return send(res, 200, { total_hits: 3, hits: [
+      const isNeoForge = server.software === "neoforge";
+      if (d === "search") return send(res, 200, isNeoForge ? { total_hits: 3, hits: [
+        { project_id: "u6dDxAtlas", slug: "jei", title: "Just Enough Items (JEI)", description: "Zeigt Gegenstände und Rezepte an.", author: "mezz", downloads: 80_000_000, icon_url: "", categories: ["neoforge"] },
+        { project_id: "lhGA9TYQ", slug: "ferrite-core", title: "FerriteCore", description: "Speicheroptimierungen für Minecraft.", author: "malte0811", downloads: 18_000_000, icon_url: "", categories: ["neoforge"] },
+        { project_id: "9eGKb6K1", slug: "simple-voice-chat", title: "Simple Voice Chat", description: "Proximity-Voicechat in Minecraft.", author: "henkelmax", downloads: 25_000_000, icon_url: "", categories: ["neoforge"] },
+      ] } : { total_hits: 3, hits: [
         { project_id: "Vebnzrzj", slug: "luckperms", title: "LuckPerms", description: "Ein Rechtesystem für Minecraft-Server.", author: "Luck", downloads: 12_400_000, icon_url: "", categories: [] },
         { project_id: "hXiIvTyT", slug: "essentialsx", title: "EssentialsX", description: "Die Essentials für Server: Homes, Warps, Kits und mehr.", author: "EssentialsX", downloads: 8_100_000, icon_url: "", categories: [] },
         { project_id: "9eGKb6K1", slug: "simple-voice-chat", title: "Simple Voice Chat", description: "Proximity-Voicechat in Minecraft.", author: "henkelmax", downloads: 25_000_000, icon_url: "", categories: [] },
       ] });
-      if (d === "install") return send(res, 200, { installed: ["Beispiel.jar"] });
-      return send(res, 200, { project: { id: "Vebnzrzj", title: "LuckPerms", description: "Ein Rechtesystem.", icon_url: "", downloads: 1, slug: "luckperms" }, versions: [{ id: "v1", name: "v5.5.0", versionNumber: "5.5.0", type: "release", published: new Date().toISOString(), gameVersions: ["1.21.4"] }] });
+      if (d === "install") return send(res, 200, { installed: [isNeoForge ? "jei-1.21.4-neoforge-19.21.0.250.jar" : "Beispiel.jar"] });
+      return send(res, 200, isNeoForge ? {
+        project: { id: "u6dDxAtlas", title: "Just Enough Items (JEI)", description: "Zeigt Gegenstände und Rezepte an.", icon_url: "", downloads: 80_000_000, slug: "jei" },
+        versions: [{ id: "v-jei-1", name: "v19.21.0.250", versionNumber: "19.21.0.250", type: "release", published: new Date().toISOString(), gameVersions: ["1.21.4"] }],
+      } : {
+        project: { id: "Vebnzrzj", title: "LuckPerms", description: "Ein Rechtesystem.", icon_url: "", downloads: 1, slug: "luckperms" },
+        versions: [{ id: "v1", name: "v5.5.0", versionNumber: "5.5.0", type: "release", published: new Date().toISOString(), gameVersions: ["1.21.4"] }],
+      });
     }
     if (c === "backups") {
       if (method === "GET" && !d) return send(res, 200, [

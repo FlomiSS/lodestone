@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -51,6 +52,17 @@ func fakeProviders(t *testing.T) (*Resolver, *httptest.Server) {
 <version>26.3.0.99</version>
 <version>26.4.0-alpha.1</version>
 </versions></versioning></metadata>`)
+	})
+	mux.HandleFunc("/neoforge/", func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, ".sha256") {
+			fmt.Fprint(w, hex.EncodeToString(sum[:]))
+			return
+		}
+		if strings.HasSuffix(r.URL.Path, "-installer.jar") {
+			w.Write(jar)
+			return
+		}
+		http.NotFound(w, r)
 	})
 
 
@@ -214,13 +226,22 @@ func TestNeoForgeVersionsAndResolve(t *testing.T) {
 	if artifact.URL != wantURL || artifact.FileName != "neoforge-21.4.161-installer.jar" {
 		t.Fatalf("Artifact = %+v, erwartet URL %s", artifact, wantURL)
 	}
+	if artifact.SHA256 == "" {
+		t.Fatal("NeoForge Artifact muss eine SHA256-Prüfsumme enthalten")
+	}
+
+	// Download mit Prüfsumme prüfen
+	dst := filepath.Join(t.TempDir(), "installer.jar")
+	if err := resolver.Download(ctx, artifact, dst); err != nil {
+		t.Fatalf("NeoForge Download mit Prüfsumme fehlgeschlagen: %v", err)
+	}
 
 	// Resolve über direkte NeoForge-Version
 	direct, err := resolver.Resolve(ctx, NeoForge, "20.4.253")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if direct.FileName != "neoforge-20.4.253-installer.jar" {
+	if direct.FileName != "neoforge-20.4.253-installer.jar" || direct.SHA256 == "" {
 		t.Fatalf("Direct Artifact = %+v", direct)
 	}
 

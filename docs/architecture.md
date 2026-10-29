@@ -69,7 +69,7 @@ sie mit dem Panel verbindet. Datenbank hinter einer Schnittstelle, SQLite für k
 5. ✅ Netzwerk-Autoconfig (Try-Reihenfolge, Forced Hosts, statische Server, Voicechat)
 6. **Nächste Stufe:** Gruppen mit Scaling und Proxy-Plugin, Verbindung der Node nach außen, Netzwerke über mehrere
    Nodes, geplante Backups, Zwei-Faktor, Audit-Log
-7. Forge/NeoForge, Geyser/Floodgate und weitere Bausteine, Spieler-Verwaltung über Rechte (Torch optional)
+7. Forge, Geyser/Floodgate und weitere Bausteine, Spieler-Verwaltung über Rechte (Torch optional)
 
 ## Betrieb (Panel-Schleifen)
 

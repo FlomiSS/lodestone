@@ -204,3 +204,16 @@ func TestMOTDIsWrittenToTheProxy(t *testing.T) {
 	}
 	t.Fatal("die MOTD fehlt in der Autoconfig des Proxys")
 }
+
+func TestNeoForgePanelAddonsHelpers(t *testing.T) {
+	loaders := loadersFor("neoforge")
+	if len(loaders) != 1 || loaders[0] != "neoforge" {
+		t.Fatalf("loadersFor(neoforge) = %v, erwartet [neoforge]", loaders)
+	}
+	if got := addonDir("neoforge"); got != "mods" {
+		t.Fatalf("addonDir(neoforge) = %q, erwartet mods", got)
+	}
+	if got := gameVersionFor("neoforge", "21.4.161"); got != "1.21.4" {
+		t.Fatalf("gameVersionFor(neoforge, 21.4.161) = %q, erwartet 1.21.4", got)
+	}
+}

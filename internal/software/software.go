@@ -168,6 +168,30 @@ func (r *Resolver) getXML(ctx context.Context, address string, into any) error {
 	return xml.NewDecoder(io.LimitReader(response.Body, 64<<20)).Decode(into)
 }
 
+func (r *Resolver) getText(ctx context.Context, address string) (string, error) {
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, address, nil)
+	if err != nil {
+		return "", err
+	}
+	request.Header.Set("User-Agent", "Lodestone")
+	response, err := r.HTTP.Do(request)
+	if err != nil {
+		return "", err
+	}
+	defer response.Body.Close()
+	if response.StatusCode == http.StatusNotFound {
+		return "", ErrNotFound
+	}
+	if response.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("%s antwortet mit Status %d", request.URL.Host, response.StatusCode)
+	}
+	data, err := io.ReadAll(io.LimitReader(response.Body, 1<<20))
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(data)), nil
+}
+
 // ErrNotFound bedeutet, dass es die gewünschte Version nicht gibt.
 var ErrNotFound = errors.New("diese Version gibt es nicht")
 
@@ -444,7 +468,15 @@ func (r *Resolver) Resolve(ctx context.Context, id ID, version string) (Artifact
 			return Artifact{}, ErrNotFound
 		}
 		address := fmt.Sprintf("%s/%s/neoforge-%s-installer.jar", r.NeoForgeMaven, url.PathEscape(target), url.PathEscape(target))
-		return Artifact{URL: address, FileName: fmt.Sprintf("neoforge-%s-installer.jar", target)}, nil
+		artifact := Artifact{URL: address, FileName: fmt.Sprintf("neoforge-%s-installer.jar", target)}
+		sum, err := r.getText(ctx, address+".sha256")
+		if err != nil {
+			return Artifact{}, fmt.Errorf("Prüfsumme für NeoForge %s nicht abrufbar: %w", target, err)
+		}
+		if fields := strings.Fields(sum); len(fields) > 0 {
+			artifact.SHA256 = fields[0]
+		}
+		return artifact, nil
 	}
 	return Artifact{}, fmt.Errorf("unbekannte Software: %s", id)
 }

@@ -288,7 +288,7 @@ func loadersFor(id string) []string {
 	case "fabric":
 		return []string{"fabric"}
 	case "neoforge":
-		return []string{"neoforge", "forge"}
+		return []string{"neoforge"}
 	case "velocity":
 		return []string{"velocity"}
 	}
