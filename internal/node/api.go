@@ -52,6 +52,11 @@ func (a *API) Handler() http.Handler {
 	mux.HandleFunc("POST /api/system/update-panel", a.systemUpdatePanel)
 	mux.HandleFunc("GET /api/software", func(w http.ResponseWriter, _ *http.Request) { writeJSON(w, http.StatusOK, software.Catalog()) })
 	mux.HandleFunc("GET /api/software/{id}/versions", a.softwareVersions)
+	mux.HandleFunc("GET /api/packs", func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(w, http.StatusOK, software.GetPackManager().Summaries())
+	})
+	mux.HandleFunc("PUT /api/packs/{id}", a.putPack)
+	mux.HandleFunc("DELETE /api/packs/{id}", a.deletePack)
 
 	mux.HandleFunc("GET /api/playit", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, a.manager.PlayitStatus(r.Context()))
@@ -653,4 +658,36 @@ func (a *API) download(w http.ResponseWriter, r *http.Request, server *Server) {
 	w.Header().Set("Content-Type", "application/octet-stream")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	http.ServeContent(w, r, info.Name(), info.ModTime(), file)
+}
+
+func (a *API) putPack(w http.ResponseWriter, r *http.Request) {
+	var pack software.PositionPack
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, software.MaxPackJSONSize)).Decode(&pack); err != nil {
+		writeError(w, badRequest("ungültiges Position-Pack: %v", err))
+		return
+	}
+	id := software.ID(r.PathValue("id"))
+	if id != "" {
+		pack.Meta.ID = id
+	}
+	pm := software.GetPackManager()
+	if err := pm.Save(&pack); err != nil {
+		writeError(w, badRequest("Position-Pack konnte nicht gespeichert werden: %v", err))
+		return
+	}
+	writeJSON(w, http.StatusOK, pack.Summary())
+}
+
+func (a *API) deletePack(w http.ResponseWriter, r *http.Request) {
+	id := software.ID(r.PathValue("id"))
+	pm := software.GetPackManager()
+	if err := pm.Delete(id); err != nil {
+		if errors.Is(err, software.ErrNotFound) {
+			writeError(w, ErrNotFound)
+			return
+		}
+		writeError(w, badRequest("%v", err))
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }

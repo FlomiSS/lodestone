@@ -425,6 +425,9 @@ func (p *Panel) createInstance(ctx context.Context, project Project, group Group
 	}
 	callCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
+	if err := p.ensurePackOnNode(callCtx, client, spec.Software); err != nil {
+		return ServerRow{}, err
+	}
 	if err := client.Do(callCtx, http.MethodPost, "/api/servers", spec, nil); err != nil {
 		return ServerRow{}, err
 	}

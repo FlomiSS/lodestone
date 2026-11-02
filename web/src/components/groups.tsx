@@ -180,7 +180,7 @@ function GroupDialog({ project, group, onClose, onDone }: { project: Project; gr
 
   const { data: versions } = useApi<string[]>(open && !existing ? `/software/${softwareId}/versions` : null);
   const effectiveVersion = existing ? version : versions && versions.includes(version) ? version : (versions?.[0] ?? "");
-  const options = (software ?? []).filter((item) => backendSoftware.includes(item.id));
+  const options = (software ?? []).filter((item) => (item.canBeBackend ?? backendSoftware.includes(item.id)));
 
   useEffect(() => {
     if (!existing && software && !options.some((item) => item.id === softwareId)) setSoftwareId("paper");

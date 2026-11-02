@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ArrowUpCircle, Cable, Cpu, FolderKanban, LayoutDashboard, ScrollText, Users, type LucideIcon } from "lucide-react";
+import { ArrowUpCircle, Cable, Cpu, FolderKanban, LayoutDashboard, Package, ScrollText, Users, type LucideIcon } from "lucide-react";
 import { SecondarySidebar } from "@/components/layout/shell";
 import { cx } from "@/components/ui/primitives";
 
@@ -18,6 +18,7 @@ const entries: AdminEntry[] = [
   { href: "/users/", label: "Benutzer", icon: Users, isActive: (p) => p.startsWith("/users/") },
   { href: "/admin/projects/", label: "Projekte", icon: FolderKanban, isActive: (p) => p.startsWith("/admin/projects/") },
   { href: "/nodes/", label: "Nodes", icon: Cpu, isActive: (p) => p.startsWith("/nodes/") },
+  { href: "/admin/packs/", label: "Position-Packs", icon: Package, isActive: (p) => p.startsWith("/admin/packs/") },
   { href: "/admin/playit/", label: "playit.gg", icon: Cable, isActive: (p) => p.startsWith("/admin/playit/") },
   { href: "/admin/updates/", label: "Updates", icon: ArrowUpCircle, isActive: (p) => p.startsWith("/admin/updates/") },
   { href: "/audit/", label: "Protokoll", icon: ScrollText, isActive: (p) => p.startsWith("/audit/") },

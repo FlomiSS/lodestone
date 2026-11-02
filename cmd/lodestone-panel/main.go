@@ -52,6 +52,9 @@ func run(logger *slog.Logger) error {
 	if err := os.MkdirAll(dataDir, 0o700); err != nil {
 		return err
 	}
+	if err := os.MkdirAll(filepath.Join(dataDir, "packs"), 0o700); err != nil {
+		return err
+	}
 	store, err := panel.OpenStore(filepath.Join(dataDir, "lodestone.db"))
 	if err != nil {
 		return err

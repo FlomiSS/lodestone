@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -58,6 +59,7 @@ func run(configPath string, logger *slog.Logger) error {
 	if err != nil {
 		return fmt.Errorf("Docker-Anbindung: %w", err)
 	}
+	software.InitPackManager(filepath.Join(config.DataDir, "packs"))
 	resolver := software.NewResolver()
 	manager := node.NewManager(config, runtime, resolver, logger)
 	defer manager.Close()

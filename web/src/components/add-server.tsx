@@ -28,7 +28,7 @@ export function AddServerDialog({ project, open, onClose, onCreated }: { project
   const options = useMemo(() => {
     const all = software ?? [];
     if (project.kind === "server") return all;
-    return all.filter((item) => (item.id === "velocity" ? !hasProxy : ["paper", "purpur", "folia", "leaf", "fabric", "neoforge"].includes(item.id)));
+    return all.filter((item) => (item.id === "velocity" ? !hasProxy : (item.canBeBackend ?? ["paper", "purpur", "folia", "leaf", "fabric", "neoforge"].includes(item.id))));
   }, [software, project.kind, hasProxy]);
 
   const [name, setName] = useState("");
@@ -80,7 +80,7 @@ export function AddServerDialog({ project, open, onClose, onCreated }: { project
 
   const info = options.find((item) => item.id === softwareId);
   const needsEula = info?.kind === "server";
-  const canVoice = project.kind === "network" && ["paper", "purpur", "folia", "leaf", "fabric", "neoforge"].includes(softwareId);
+  const canVoice = project.kind === "network" && (info?.canVoice ?? ["paper", "purpur", "folia", "leaf", "fabric", "neoforge"].includes(softwareId));
 
   function applyTemplate(template: (typeof templates)[number]) {
     if (!options.some((item) => item.id === template.software)) return;

@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"log/slog"
 	"net/http"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -87,6 +88,12 @@ type viewEntry struct {
 
 // New baut das Panel. web ist die Oberfläche (kann nil sein).
 func New(cfg Config, store *Store, logger *slog.Logger, web http.Handler) *Panel {
+	packsDir := ""
+	if cfg.DataDir != "" {
+		packsDir = filepath.Join(cfg.DataDir, "packs")
+	}
+	software.InitPackManager(packsDir)
+
 	return &Panel{
 		cfg: cfg, store: store, log: logger, web: web,
 		throttle: newThrottle(), sw: software.NewResolver(), modrinth: NewModrinth(),
@@ -157,6 +164,14 @@ func (p *Panel) Handler() http.Handler {
 	mux.HandleFunc("GET /api/modpacks/{project}", p.authenticate(p.modpackVersions))
 	mux.HandleFunc("GET /api/software", p.authenticate(p.listSoftware))
 	mux.HandleFunc("GET /api/software/{id}/versions", p.authenticate(p.softwareVersions))
+
+	// Position-Packs
+	mux.HandleFunc("GET /api/packs", p.authenticate(p.listPacks))
+	mux.HandleFunc("GET /api/packs/{id}", p.authenticate(p.getPack))
+	mux.HandleFunc("GET /api/packs/{id}/export", p.authenticate(p.exportPack))
+	mux.HandleFunc("POST /api/packs/upload", p.authenticate(p.uploadPack))
+	mux.HandleFunc("PUT /api/packs/{id}", p.authenticate(p.updatePack))
+	mux.HandleFunc("DELETE /api/packs/{id}", p.authenticate(p.deletePack))
 
 	// Projekte
 	mux.HandleFunc("GET /api/projects", p.authenticate(p.listProjects))
@@ -284,7 +299,11 @@ func writeError(w http.ResponseWriter, err error) {
 }
 
 func decode(r *http.Request, into any) error {
-	decoder := json.NewDecoder(io.LimitReader(r.Body, 1<<20))
+	return decodeLimit(r, into, 1<<20)
+}
+
+func decodeLimit(r *http.Request, into any, limit int64) error {
+	decoder := json.NewDecoder(io.LimitReader(r.Body, limit))
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(into); err != nil {
 		return fail(http.StatusBadRequest, "ungültige Anfrage: "+err.Error())

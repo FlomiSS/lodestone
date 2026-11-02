@@ -158,6 +158,12 @@ func (p *Panel) createServer(w http.ResponseWriter, r *http.Request) {
 	spec.ID = row.ID
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()
+
+	if err := p.ensurePackOnNode(ctx, client, spec.Software); err != nil {
+		writeError(w, err)
+		return
+	}
+
 	var view node.View
 	if err := client.Do(ctx, http.MethodPost, "/api/servers", spec, &view); err != nil {
 		writeError(w, err)

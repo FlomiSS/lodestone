@@ -501,20 +501,51 @@ async function api(req, res, url) {
     return send(res, method === "GET" ? 200 : 202, playit);
   }
   if (a === "nodes") return send(res, method === "GET" ? 200 : 201, method === "GET" ? nodes : nodes[0]);
+  if (a === "packs") {
+    if (!b) {
+      return send(res, 200, [
+        { id: "paper", name: "Paper", description: "Hochperformante Minecraft-Server-Software mit Plugin-Unterstützung.", version: "1.0.0", author: "PaperMC", kind: "server", extensions: "plugins", defaultPort: 25565, custom: false, zipSize: 4200, hasAutoconfig: true, hasScript: false, canBeBackend: true, canVoice: true },
+        { id: "fabric", name: "Fabric", description: "Leichtgewichtige, modulare Modding-Toolchain für Minecraft.", version: "1.0.0", author: "FabricMC", kind: "server", extensions: "mods", defaultPort: 25565, custom: false, zipSize: 3800, hasAutoconfig: true, hasScript: false, canBeBackend: true, canVoice: true },
+        { id: "purpur", name: "Purpur", description: "Paper-Abspaltung mit Fokus auf Konfigurierbarkeit.", version: "1.0.0", author: "PurpurMC", kind: "server", extensions: "plugins", defaultPort: 25565, custom: false, zipSize: 4100, hasAutoconfig: true, hasScript: false, canBeBackend: true, canVoice: true },
+        { id: "velocity", name: "Velocity", description: "Moderner, extrem schneller Minecraft-Proxy von PaperMC.", version: "1.0.0", author: "PaperMC", kind: "proxy", extensions: "plugins", defaultPort: 25565, custom: false, zipSize: 4500, hasAutoconfig: true, hasScript: false, canBeBackend: false, canVoice: false },
+        { id: "minestom", name: "Minestom", description: "Schnelle Reimplementierung ohne Vanilla-Code.", version: "1.0.0", author: "Minestom Project", kind: "server", extensions: "none", defaultPort: 25565, custom: true, zipSize: 3900, hasAutoconfig: true, hasScript: true, canBeBackend: true, canVoice: false },
+      ]);
+    }
+    if (b === "upload" && method === "POST") {
+      return send(res, 201, { id: "custom-pack", name: "Eigenes Pack", kind: "server", extensions: "plugins", defaultPort: 25565, custom: true, zipSize: 2048, hasAutoconfig: true, hasScript: false, canBeBackend: true, canVoice: false });
+    }
+    if (b && c === "export") {
+      res.writeHead(200, { "Content-Type": "application/zip", "Content-Disposition": `attachment; filename="${b}.positionpack.zip"` });
+      return res.end(Buffer.from("PK...mockzip"));
+    }
+    if (b && method === "DELETE") {
+      return send(res, 204);
+    }
+    if (b && method === "PUT") {
+      return send(res, 200, { id: b, name: body.meta?.name || b, kind: body.meta?.kind || "server", extensions: body.meta?.extensions || "plugins", defaultPort: body.meta?.defaultPort || 25565, custom: true, zipSize: 2500, hasAutoconfig: true, hasScript: true, canBeBackend: true, canVoice: true });
+    }
+    return send(res, 200, {
+      meta: { id: b, name: b === "paper" ? "Paper" : b === "fabric" ? "Fabric" : "Position-Pack", kind: b === "velocity" ? "proxy" : "server", extensions: b === "fabric" ? "mods" : "plugins", defaultPort: 25565, startup: "exec java -jar {{JAR}} nogui", stopCommand: "stop", readyPattern: "Done \\(", backend: { supported: b !== "velocity", voiceConfigFile: "plugins/voicechat/voicechat-server.properties" } },
+      autoconfig: { backend: { edits: [{ file: "server.properties", format: "properties", set: [{ path: ["online-mode"], value: false }] }] } },
+      script: "#!/bin/sh\necho 'Autoconfig ausgeführt'\n",
+      custom: b === "minestom",
+      zipSize: 4200,
+    });
+  }
   if (a === "software") {
     if (b && c === "versions") {
       return send(res, 200, b === "velocity" ? ["3.5.1", "3.4.0", "4.3.1"] : b === "fabric" ? ["1.21.4", "1.21.3", "1.20.6"] : b === "neoforge" ? ["1.21.4", "1.21.3", "1.21.1", "1.20.4"] : b === "forge" ? ["1.21.11", "1.21.4", "1.20.1", "1.18.2"] : ["26.3", "26.2", "1.21.11", "1.21.10", "1.21.4"]);
     }
     return send(res, 200, [
-      { id: "paper", name: "Paper", kind: "server", extensions: "plugins", defaultPort: 25565 },
-      { id: "purpur", name: "Purpur", kind: "server", extensions: "plugins", defaultPort: 25565 },
-      { id: "folia", name: "Folia", kind: "server", extensions: "plugins", defaultPort: 25565 },
-      { id: "leaf", name: "Leaf", kind: "server", extensions: "plugins", defaultPort: 25565 },
-      { id: "fabric", name: "Fabric", kind: "server", extensions: "mods", defaultPort: 25565 },
-      { id: "neoforge", name: "NeoForge", kind: "server", extensions: "mods", defaultPort: 25565 },
-      { id: "forge", name: "Forge", kind: "server", extensions: "mods", defaultPort: 25565 },
-      { id: "vanilla", name: "Vanilla", kind: "server", extensions: "none", defaultPort: 25565 },
-      { id: "velocity", name: "Velocity", kind: "proxy", extensions: "plugins", defaultPort: 25565 },
+      { id: "paper", name: "Paper", kind: "server", extensions: "plugins", defaultPort: 25565, canBeBackend: true, canVoice: true },
+      { id: "purpur", name: "Purpur", kind: "server", extensions: "plugins", defaultPort: 25565, canBeBackend: true, canVoice: true },
+      { id: "folia", name: "Folia", kind: "server", extensions: "plugins", defaultPort: 25565, canBeBackend: true, canVoice: true },
+      { id: "leaf", name: "Leaf", kind: "server", extensions: "plugins", defaultPort: 25565, canBeBackend: true, canVoice: true },
+      { id: "fabric", name: "Fabric", kind: "server", extensions: "mods", defaultPort: 25565, canBeBackend: true, canVoice: true },
+      { id: "neoforge", name: "NeoForge", kind: "server", extensions: "mods", defaultPort: 25565, canBeBackend: true, canVoice: true },
+      { id: "forge", name: "Forge", kind: "server", extensions: "mods", defaultPort: 25565, canBeBackend: false, canVoice: false },
+      { id: "vanilla", name: "Vanilla", kind: "server", extensions: "none", defaultPort: 25565, canBeBackend: false, canVoice: false },
+      { id: "velocity", name: "Velocity", kind: "proxy", extensions: "plugins", defaultPort: 25565, canBeBackend: false, canVoice: false },
     ]);
   }
 

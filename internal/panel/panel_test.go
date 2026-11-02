@@ -41,6 +41,26 @@ type fakeNode struct {
 	version     string
 	updates     []string
 	updateFails bool
+	packPuts    []string
+	packFails   bool
+}
+
+func (f *fakeNode) setPackFails(fail bool) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.packFails = fail
+}
+
+func (f *fakeNode) getPackPuts() []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return append([]string(nil), f.packPuts...)
+}
+
+func (f *fakeNode) clearPackPuts() {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.packPuts = nil
 }
 
 func (f *fakeNode) setVersion(version string) {
@@ -315,6 +335,19 @@ func newFakeNode(t *testing.T) (*fakeNode, *httptest.Server) {
 	})
 	mux.HandleFunc("GET /api/servers/{id}/logs", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, 200, []string{"zeile"})
+	})
+	mux.HandleFunc("PUT /api/packs/{id}", func(w http.ResponseWriter, r *http.Request) {
+		fake.mu.Lock()
+		defer fake.mu.Unlock()
+		fake.packPuts = append(fake.packPuts, r.PathValue("id"))
+		if fake.packFails {
+			writeJSON(w, 500, map[string]string{"error": "node pack sync failure"})
+			return
+		}
+		writeJSON(w, 200, map[string]any{"ok": true})
+	})
+	mux.HandleFunc("DELETE /api/packs/{id}", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
 	})
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)

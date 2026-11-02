@@ -340,6 +340,102 @@ export interface SoftwareInfo {
   kind: "server" | "proxy";
   extensions: "plugins" | "mods" | "none";
   defaultPort: number;
+  startup?: string;
+  stopCommand?: string;
+  readyPattern?: string;
+  description?: string;
+  canBeBackend?: boolean;
+  canVoice?: boolean;
+  custom?: boolean;
+}
+
+export interface PackSetOp {
+  path: string[];
+  value: unknown;
+}
+
+export interface PackEdit {
+  file: string;
+  format: "properties" | "yaml" | "toml";
+  create?: boolean;
+  set?: PackSetOp[];
+}
+
+export interface PackWrite {
+  path: string;
+  content: string;
+}
+
+export interface PackAutoconfigTarget {
+  edits?: PackEdit[];
+  writes?: PackWrite[];
+  restart?: boolean;
+  reload?: string;
+}
+
+export interface PackAutoconfigVoice {
+  file: string;
+  format: "properties" | "yaml" | "toml" | string;
+  set?: PackSetOp[];
+}
+
+export interface PositionPackSummary {
+  id: string;
+  name: string;
+  description?: string;
+  version?: string;
+  author?: string;
+  kind: "server" | "proxy";
+  extensions: "plugins" | "mods" | "none";
+  defaultPort: number;
+  custom: boolean;
+  overridden?: boolean;
+  zipSize: number;
+  hasAutoconfig: boolean;
+  hasScript: boolean;
+  canBeBackend: boolean;
+  canVoice: boolean;
+}
+
+export interface PositionPackDetail {
+  meta: {
+    id: string;
+    name: string;
+    description?: string;
+    version?: string;
+    author?: string;
+    kind: "server" | "proxy";
+    extensions: "plugins" | "mods" | "none";
+    defaultPort: number;
+    startup: string;
+    stopCommand: string;
+    readyPattern: string;
+    java?: {
+      strategy?: string;
+      major?: number;
+    };
+    provider?: {
+      type?: string;
+      versions?: string[];
+      downloadUrl?: string;
+      fileName?: string;
+    };
+    backend?: {
+      supported?: boolean;
+      proxyMod?: string;
+      voiceConfigFile?: string;
+    };
+  };
+  autoconfig: {
+    backend?: PackAutoconfigTarget;
+    proxy?: PackAutoconfigTarget;
+    standalone?: PackAutoconfigTarget;
+    voicechat?: PackAutoconfigVoice;
+  };
+  script?: string;
+  custom: boolean;
+  overridden?: boolean;
+  zipSize: number;
 }
 
 export interface FileEntry {

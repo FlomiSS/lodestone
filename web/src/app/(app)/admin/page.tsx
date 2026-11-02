@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Activity, ArrowRight, ArrowUpCircle, Cpu, FolderKanban, ScrollText, Server, ShieldCheck, Users } from "lucide-react";
+import { Activity, ArrowRight, ArrowUpCircle, Cpu, FolderKanban, Package, ScrollText, Server, ShieldCheck, Users } from "lucide-react";
 import { AdminSidebar } from "@/components/admin-sidebar";
 import { useUser } from "@/components/layout/shell";
 import { ErrorState, Loading } from "@/components/ui/async";
@@ -64,6 +64,12 @@ export default function AdminOverviewPage() {
       title: "Nodes",
       description: "Host-Maschinen verwalten, Speicherauslastung prüfen und playit verbinden",
       icon: Cpu,
+    },
+    {
+      href: "/admin/packs/",
+      title: "Position-Packs",
+      description: "Server-Software-Vorlagen, Autokonfigurationen und Skripte als ZIP verwalten",
+      icon: Package,
     },
     {
       href: "/admin/updates/",

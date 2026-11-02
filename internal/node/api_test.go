@@ -18,6 +18,7 @@ import (
 
 	"github.com/coder/websocket"
 	"github.com/coder/websocket/wsjson"
+	"github.com/lodestone-mc/lodestone/internal/software"
 )
 
 type testAPI struct {
@@ -370,6 +371,212 @@ func TestSystemUpdateEndpoints(t *testing.T) {
 	defer resp.Body.Close()
 	if resp.StatusCode != 401 {
 		t.Fatalf("erwarte 401 ohne Token, got %d", resp.StatusCode)
+	}
+}
+
+func TestAPIPackRoutes(t *testing.T) {
+	tempDir := t.TempDir()
+	software.InitPackManager(tempDir)
+	t.Cleanup(func() {
+		software.InitPackManager("")
+	})
+
+	a := newTestAPI(t)
+
+	// 1. Auth check
+	for _, method := range []string{http.MethodPut, http.MethodDelete} {
+		req, err := http.NewRequestWithContext(context.Background(), method, a.url+"/api/packs/custom-node-test", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp.Body.Close()
+		if resp.StatusCode != http.StatusUnauthorized {
+			t.Fatalf("%s ohne Token: erwartet 401, erhalten %d", method, resp.StatusCode)
+		}
+	}
+
+	// 2. Ungültiges JSON bei PUT
+	status, _ := a.do(http.MethodPut, "/api/packs/test-pack", "{ungueltiges json")
+	if status != http.StatusBadRequest {
+		t.Fatalf("PUT ungültiges JSON: erwartet 400, erhalten %d", status)
+	}
+
+	// 3. Body größer als software.MaxPackJSONSize (8 MB)
+	oversized := append([]byte(`{"meta":{"name":"`), bytes.Repeat([]byte("a"), software.MaxPackJSONSize+100)...)
+	oversized = append(oversized, []byte(`"}}`)...)
+	status, _ = a.do(http.MethodPut, "/api/packs/oversized-pack", oversized)
+	if status != http.StatusBadRequest {
+		t.Fatalf("PUT oversized body: erwartet 400, erhalten %d", status)
+	}
+
+	// 3b. Pack mit Skript größer als MaxPackScriptSize (1 MB) wird abgewiesen
+	oversizedScriptPack := software.PositionPack{
+		Meta: software.PackMeta{
+			ID:         "oversized-script",
+			Name:       "Oversized Script",
+			Kind:       software.KindServer,
+			Extensions: software.ExtPlugins,
+		},
+		Script: strings.Repeat("# script\n", 150000), // ca. 1.35 MB > 1 MB
+	}
+	status, _ = a.do(http.MethodPut, "/api/packs/oversized-script", oversizedScriptPack)
+	if status != http.StatusBadRequest {
+		t.Fatalf("PUT oversized script (>1MB): erwartet 400, erhalten %d", status)
+	}
+
+	// 3c. Gültiges Pack größer als maxJSONBody (1 MB), aber mit zulässigen Eintragsgrößen (Script < 1 MB, Autoconfig < 2 MB)
+	scriptContent := strings.Repeat("# line\n", 100000) // ~700 KB (< 1 MB)
+	largeEdits := make([]software.PackEdit, 500)
+	for i := range largeEdits {
+		largeEdits[i] = software.PackEdit{
+			File:   "config.yml",
+			Format: "yaml",
+			Set:    []software.PackSetOp{{Path: []string{strings.Repeat("k", 20)}, Value: strings.Repeat("x", 800)}},
+		}
+	}
+	largePack := software.PositionPack{
+		Meta: software.PackMeta{
+			ID:         "large-pack",
+			Name:       "Large Pack",
+			Kind:       software.KindServer,
+			Extensions: software.ExtPlugins,
+		},
+		Script: scriptContent,
+		Autoconfig: software.PackAutoconfig{
+			Backend: &software.PackAutoconfigTarget{
+				Edits: largeEdits,
+			},
+		},
+	}
+	status, _ = a.do(http.MethodPut, "/api/packs/large-pack", largePack)
+	if status != http.StatusOK {
+		t.Fatalf("PUT large pack (>1MB): erwartet 200, erhalten %d", status)
+	}
+
+	// Sicherstellen, dass das Pack beim Neuladen/Exportieren vollständig und unversehrt bleibt (Reload-Contract)
+	exported, err := software.GetPackManager().Export("large-pack")
+	if err != nil {
+		t.Fatalf("Export large-pack: %v", err)
+	}
+	reloaded, err := software.ReadZipPack(bytes.NewReader(exported), int64(len(exported)))
+	if err != nil {
+		t.Fatalf("ReadZipPack large-pack: %v", err)
+	}
+	if reloaded.Script != scriptContent {
+		t.Fatalf("Script wurde beim Neuladen abgeschnitten oder verändert: len %d vs %d", len(reloaded.Script), len(scriptContent))
+	}
+	if reloaded.Autoconfig.Backend == nil || len(reloaded.Autoconfig.Backend.Edits) != len(largeEdits) {
+		t.Fatalf("Autoconfig wurde beim Neuladen verändert")
+	}
+	_, _ = a.do(http.MethodDelete, "/api/packs/large-pack", nil)
+
+	// 4. Ungültige Metadaten
+	status, _ = a.do(http.MethodPut, "/api/packs/bad-pack", software.PositionPack{
+		Meta: software.PackMeta{ID: "bad-pack", Name: ""},
+	})
+	if status != http.StatusBadRequest {
+		t.Fatalf("PUT ungültige Metadaten: erwartet 400, erhalten %d", status)
+	}
+
+	// 5. 404 bei DELETE von unbekanntem Pack
+	status, _ = a.do(http.MethodDelete, "/api/packs/unbekanntes-pack-xyz", nil)
+	if status != http.StatusNotFound {
+		t.Fatalf("DELETE unbekanntes Pack: erwartet 404, erhalten %d", status)
+	}
+
+	// 6. 400 bei DELETE von nicht-überschriebenem Standard-Pack
+	status, _ = a.do(http.MethodDelete, "/api/packs/paper", nil)
+	if status != http.StatusBadRequest {
+		t.Fatalf("DELETE Standard-Pack: erwartet 400, erhalten %d", status)
+	}
+
+	// 7. Gültiges PUT für Custom Pack
+	customPack := software.PositionPack{
+		Meta: software.PackMeta{
+			ID:         "custom-node-pack",
+			Name:       "Custom Node Pack",
+			Kind:       software.KindServer,
+			Extensions: software.ExtPlugins,
+		},
+	}
+	status, body := a.do(http.MethodPut, "/api/packs/custom-node-pack", customPack)
+	if status != http.StatusOK {
+		t.Fatalf("PUT custom pack: erwartet 200, erhalten %d: %s", status, body)
+	}
+	var summary software.PackSummary
+	if err := json.Unmarshal(body, &summary); err != nil {
+		t.Fatalf("unmarshal summary: %v", err)
+	}
+	if summary.ID != "custom-node-pack" || !summary.Custom || summary.Overridden {
+		t.Fatalf("unerwartete Summary für Custom Pack: %+v", summary)
+	}
+
+	// 8. GET /api/packs enthält das neue Custom Pack
+	status, body = a.do(http.MethodGet, "/api/packs", nil)
+	if status != http.StatusOK {
+		t.Fatalf("GET /api/packs: erwartet 200, erhalten %d", status)
+	}
+	var summaries []software.PackSummary
+	if err := json.Unmarshal(body, &summaries); err != nil {
+		t.Fatalf("unmarshal summaries: %v", err)
+	}
+	found := false
+	for _, s := range summaries {
+		if s.ID == "custom-node-pack" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("custom-node-pack nicht in GET /api/packs gefunden")
+	}
+
+	// 9. Standard-Pack überschreiben (PUT /api/packs/paper)
+	paperPack := software.PositionPack{
+		Meta: software.PackMeta{
+			ID:          "paper",
+			Name:        "Modifiziertes Paper",
+			Kind:        software.KindServer,
+			Extensions:  software.ExtPlugins,
+			Description: "Überschriebenes Standard-Pack",
+		},
+	}
+	status, body = a.do(http.MethodPut, "/api/packs/paper", paperPack)
+	if status != http.StatusOK {
+		t.Fatalf("PUT override paper: erwartet 200, erhalten %d: %s", status, body)
+	}
+	var paperSummary software.PackSummary
+	if err := json.Unmarshal(body, &paperSummary); err != nil {
+		t.Fatalf("unmarshal paper summary: %v", err)
+	}
+	if paperSummary.Custom || !paperSummary.Overridden {
+		t.Fatalf("überschriebenes Paper sollte Custom=false, Overridden=true sein: %+v", paperSummary)
+	}
+
+	// 10. DELETE von überschriebenem Standard-Pack setzt zurück (204)
+	status, _ = a.do(http.MethodDelete, "/api/packs/paper", nil)
+	if status != http.StatusNoContent {
+		t.Fatalf("DELETE override paper: erwartet 204, erhalten %d", status)
+	}
+	// Nach Reset schlägt DELETE wieder mit 400 fehl
+	status, _ = a.do(http.MethodDelete, "/api/packs/paper", nil)
+	if status != http.StatusBadRequest {
+		t.Fatalf("DELETE reset paper: erwartet 400, erhalten %d", status)
+	}
+
+	// 11. DELETE von Custom Pack (204)
+	status, _ = a.do(http.MethodDelete, "/api/packs/custom-node-pack", nil)
+	if status != http.StatusNoContent {
+		t.Fatalf("DELETE custom pack: erwartet 204, erhalten %d", status)
+	}
+	// Erneutes DELETE liefert 404
+	status, _ = a.do(http.MethodDelete, "/api/packs/custom-node-pack", nil)
+	if status != http.StatusNotFound {
+		t.Fatalf("DELETE custom pack erneut: erwartet 404, erhalten %d", status)
 	}
 }
 
