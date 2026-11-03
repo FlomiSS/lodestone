@@ -7,7 +7,7 @@ Ein Hosting-Panel für Minecraft, zum Selbsthosten. Es verwaltet Server und ganz
 oder mehreren Maschinen (Nodes), mit Docker als Isolation, mehreren Benutzern und Rollen pro Projekt.
 
 > **Stand: Version 0.1.** Fertig sind Node-Daemon, Panel-Backend, Weboberfläche und die Netzwerk-Autoconfig. Gruppen mit
-> Autoscaling und die Verbindung der Node „nach außen“ kommen später, siehe [docs/architecture.md](docs/architecture.md).
+> Autoscaling und die Verbindung der Node „nach außen“ kommen später, siehe [docs/architecture.md](docs/architecture.md). Das Panel sollte noch nicht zum hosten von Wichtiegen Severn verwendet werde, da es aktuell noch sehr instabil ist und eventuell Probleme verursachen kann.
 
 ```
 Browser ──►  Panel (Go, SQLite, eingebettete Next.js-Oberfläche)  ──HTTP + Token──►  Node-Daemon (Go)  ──►  Docker  ──►  Server
