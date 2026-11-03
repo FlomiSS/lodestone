@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { FolderPlus, Network, Plus, Server as ServerIcon, Users } from "lucide-react";
 import { useState } from "react";
+import { useAppNavigation } from "@/components/layout/navigation";
 import { Badge, Button, Card, EmptyState, PageHeader } from "@/components/ui/primitives";
 import { Dialog, useToast } from "@/components/ui/feedback";
 import { ErrorState, Loading } from "@/components/ui/async";
@@ -12,7 +12,7 @@ import { api, useApi } from "@/lib/api";
 import { roleLabel, type Project } from "@/lib/types";
 
 export default function OverviewPage() {
-  const router = useRouter();
+  const navigation = useAppNavigation();
   const { data: projects, error, mutate } = useApi<Project[]>("/projects", { refreshInterval: 5000 });
   const [creating, setCreating] = useState(false);
 
@@ -88,7 +88,7 @@ export default function OverviewPage() {
         onClose={() => setCreating(false)}
         onCreated={(project) => {
           mutate();
-          router.push(`/project/${project.id}/`);
+          navigation.push(`/project/${project.id}/`);
         }}
       />
     </>

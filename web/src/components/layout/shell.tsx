@@ -134,6 +134,7 @@ function Shell({ user, children }: { user: User; children: ReactNode }) {
   const [showAllProjects, setShowAllProjects] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   const { data: projects } = useApi<Project[]>("/projects", { refreshInterval: 15000 });
 
@@ -152,23 +153,33 @@ function Shell({ user, children }: { user: User; children: ReactNode }) {
   useEffect(() => setProfileMenuOpen(false), [pathname, params]);
   useEffect(() => setFolded(window.localStorage.getItem(FOLD_KEY) === "1"), []);
 
+  // Bei einem Seitenwechsel beginnt der Inhalt wieder oben
+  useEffect(() => {
+    contentRef.current?.scrollTo({ top: 0 });
+  }, [pathname]);
+
   // Animiertes Ein- und Ausgleiten je nach Unterseite / Navigationstiefe
   useEffect(() => {
-    if (activeNavView !== viewState.current) {
-      const prevDepth = getDepth(viewState.current);
+    setViewState((state) => {
+      if (state.current === activeNavView) return state;
+      const prevDepth = getDepth(state.current);
       const nextDepth = getDepth(activeNavView);
-      const direction = nextDepth >= prevDepth ? "forward" : "backward";
-      setViewState({
+      return {
         current: activeNavView,
-        previous: viewState.current,
-        direction,
-      });
-      const timer = setTimeout(() => {
-        setViewState((state) => ({ ...state, previous: null, direction: "none" }));
-      }, 220);
-      return () => clearTimeout(timer);
-    }
-  }, [activeNavView, viewState.current]);
+        previous: state.current,
+        direction: nextDepth >= prevDepth ? "forward" : "backward",
+      };
+    });
+  }, [activeNavView]);
+
+  // Die alte Ansicht bleibt nur für die Dauer der Animation im Baum
+  useEffect(() => {
+    if (!viewState.previous) return;
+    const timer = setTimeout(() => {
+      setViewState((state) => ({ ...state, previous: null, direction: "none" }));
+    }, 220);
+    return () => clearTimeout(timer);
+  }, [viewState.previous]);
 
   // Klick außerhalb des Profilmenüs schließt dieses
   useEffect(() => {
@@ -857,8 +868,13 @@ function Shell({ user, children }: { user: User; children: ReactNode }) {
           </header>
 
           <main className="min-h-[calc(100vh-3rem)] border-white/[0.06] bg-[#151515] lg:h-full lg:min-h-0 lg:overflow-hidden lg:rounded-2xl lg:border">
-            <div className="min-w-0 h-full overflow-y-auto">
-              <div className="mx-auto w-full max-w-[1480px] px-4 py-6 lg:px-10 lg:py-9">{children}</div>
+            <div ref={contentRef} className="min-w-0 h-full overflow-y-auto">
+              <div
+                key={pathname}
+                className="mx-auto w-full max-w-[1480px] animate-fade-in px-4 py-6 motion-reduce:animate-none lg:px-10 lg:py-9"
+              >
+                {children}
+              </div>
             </div>
           </main>
         </div>

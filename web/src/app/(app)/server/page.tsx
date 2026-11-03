@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { Archive, BarChart3, FolderOpen, Puzzle, Settings, Terminal, Users, type LucideIcon } from "lucide-react";
 import { Suspense } from "react";
+import { useAppNavigation } from "@/components/layout/navigation";
 import { cx } from "@/components/ui/primitives";
 import { ErrorState, Loading } from "@/components/ui/async";
 import { PowerButtons, StateBadge } from "@/components/status";
@@ -51,7 +52,7 @@ function parseServerRoute(pathname: string, searchParams: URLSearchParams): { id
 }
 
 function ServerView() {
-  const router = useRouter();
+  const navigation = useAppNavigation();
   const pathname = usePathname() ?? "";
   const params = useSearchParams();
   const { id, tab: routeTab } = parseServerRoute(pathname, params);
@@ -61,7 +62,7 @@ function ServerView() {
   function setTab(next: Tab) {
     if (!id) return;
     const target = next === "console" ? `/server/${id}/` : `/server/${id}/${next}/`;
-    router.push(target);
+    navigation.push(target);
   }
 
   if (!id) return <ErrorState error={new Error("Kein Server angegeben")} />;
@@ -130,7 +131,7 @@ function ServerView() {
       {active === "addons" && extensions && <AddonsTab serverId={server.id} canWrite={rank >= roleRank.operator} noun={extensions as "Plugins" | "Mods"} running={state === "running" || state === "starting"} />}
       {active === "players" && <PlayersTab server={server} canOperate={rank >= roleRank.operator} />}
       {active === "backups" && <BackupsTab serverId={server.id} canWrite={rank >= roleRank.operator} offline={state === "offline"} />}
-      {active === "settings" && <SettingsTab server={server} onChanged={() => mutate()} onDeleted={() => router.replace(`/project/${server.projectId}/`)} />}
+      {active === "settings" && <SettingsTab server={server} onChanged={() => mutate()} onDeleted={() => navigation.replace(`/project/${server.projectId}/`)} />}
     </>
   );
 }

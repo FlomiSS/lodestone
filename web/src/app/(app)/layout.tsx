@@ -1,6 +1,13 @@
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
+import { NavigationProvider } from "@/components/layout/navigation";
 import { AuthGate } from "@/components/layout/shell";
 
 export default function AppLayout({ children }: { children: ReactNode }) {
-  return <AuthGate>{children}</AuthGate>;
+  return (
+    <Suspense fallback={null}>
+      <NavigationProvider>
+        <AuthGate>{children}</AuthGate>
+      </NavigationProvider>
+    </Suspense>
+  );
 }

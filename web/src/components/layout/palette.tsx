@@ -1,10 +1,10 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ArrowUpCircle, Cpu, FolderKanban, Network, Search, Server, ShieldCheck, UserCog, Users, ScrollText, type LucideIcon } from "lucide-react";
 import { cx } from "@/components/ui/primitives";
+import { useAppNavigation } from "@/components/layout/navigation";
 import type { Project, User } from "@/lib/types";
 
 interface Entry {
@@ -17,7 +17,7 @@ interface Entry {
 
 /** Strg+K: springt zu Projekten, Servern und Seiten. */
 export function CommandPalette({ projects, user, open, onClose }: { projects: Project[] | undefined; user: User; open: boolean; onClose: () => void }) {
-  const router = useRouter();
+  const navigation = useAppNavigation();
   const [query, setQuery] = useState("");
   const [index, setIndex] = useState(0);
   const input = useRef<HTMLInputElement>(null);
@@ -61,7 +61,7 @@ export function CommandPalette({ projects, user, open, onClose }: { projects: Pr
   function go(entry: Entry | undefined) {
     if (!entry) return;
     onClose();
-    router.push(entry.href);
+    navigation.push(entry.href);
   }
 
   return createPortal(

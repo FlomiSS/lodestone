@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { AlertTriangle, ArrowDown, ArrowUp, Check, Copy, Network, Plus, Server as ServerIcon, Trash2, UserPlus } from "lucide-react";
 import { Suspense, useEffect, useState } from "react";
 import { Badge, Button, Card, CardHeader, EmptyState, PageHeader, Select, Switch, Tabs } from "@/components/ui/primitives";
@@ -16,6 +16,7 @@ import { StatusCard } from "@/components/status-settings";
 import { ChartCard, RangeTabs } from "@/components/server/stats";
 import { SeriesChart } from "@/components/ui/chart";
 import { PowerButtons, StateBadge } from "@/components/status";
+import { useAppNavigation } from "@/components/layout/navigation";
 import { useUser } from "@/components/layout/shell";
 import { PixelAvatar } from "@/components/ui/mc";
 import { api, useApi } from "@/lib/api";
@@ -48,7 +49,7 @@ function parseProjectRoute(pathname: string, searchParams: URLSearchParams): { i
 }
 
 function ProjectView() {
-  const router = useRouter();
+  const navigation = useAppNavigation();
   const pathname = usePathname() ?? "";
   const searchParams = useSearchParams();
   const { id, tab: routeTab } = parseProjectRoute(pathname, searchParams);
@@ -78,7 +79,7 @@ function ProjectView() {
   function setTab(next: Tab) {
     if (!id) return;
     const target = next === "servers" ? `/project/${id}/` : `/project/${id}/${next}/`;
-    router.push(target);
+    navigation.push(target);
   }
 
   return (
@@ -516,7 +517,7 @@ function AddMemberDialog({ project, open, onClose, onDone }: { project: Project;
 
 function SettingsTab({ project, refresh }: { project: Project; refresh: () => void }) {
   const toast = useToast();
-  const router = useRouter();
+  const navigation = useAppNavigation();
   const [name, setName] = useState(project.name);
   const [description, setDescription] = useState(project.description);
   const [deleting, setDeleting] = useState(false);
@@ -567,7 +568,7 @@ function SettingsTab({ project, refresh }: { project: Project; refresh: () => vo
         confirm="Endgültig löschen"
         danger
         onConfirm={async () => {
-          if (await toast.run(() => api.delete(`/projects/${project.id}`), "Projekt gelöscht")) router.replace("/");
+          if (await toast.run(() => api.delete(`/projects/${project.id}`), "Projekt gelöscht")) navigation.replace("/");
         }}
       />
     </div>
