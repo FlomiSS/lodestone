@@ -2,33 +2,28 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Cpu, FolderPlus, Network, Play, Plus, Server as ServerIcon, Users } from "lucide-react";
+import { FolderPlus, Network, Plus, Server as ServerIcon, Users } from "lucide-react";
 import { useState } from "react";
-import { Badge, Button, Card, EmptyState, PageHeader, StatCard } from "@/components/ui/primitives";
+import { Badge, Button, Card, EmptyState, PageHeader } from "@/components/ui/primitives";
 import { Dialog, useToast } from "@/components/ui/feedback";
 import { ErrorState, Loading } from "@/components/ui/async";
 import { StateBadge } from "@/components/status";
 import { api, useApi } from "@/lib/api";
-import { roleLabel, type NodeInfo, type Project } from "@/lib/types";
+import { roleLabel, type Project } from "@/lib/types";
 
 export default function OverviewPage() {
   const router = useRouter();
   const { data: projects, error, mutate } = useApi<Project[]>("/projects", { refreshInterval: 5000 });
-  const { data: nodes } = useApi<NodeInfo[]>("/nodes", { refreshInterval: 15000 });
   const [creating, setCreating] = useState(false);
 
   if (error) return <ErrorState error={error} retry={() => mutate()} />;
   if (!projects) return <Loading />;
 
-  const servers = projects.flatMap((project) => project.servers);
-  const running = servers.filter((server) => server.view?.state === "running").length;
-  const online = nodes?.filter((node) => node.online).length ?? 0;
-
   return (
     <>
       <PageHeader
-        title="Übersicht"
-        description="Deine Projekte – einzelne Server und Netzwerke."
+        title="Projekte"
+        description="Deine Minecraft-Server und -Netzwerke."
         action={
           <Button variant="primary" onClick={() => setCreating(true)}>
             <Plus className="h-4 w-4" />
@@ -37,26 +32,13 @@ export default function OverviewPage() {
         }
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Projekte" value={projects.length} icon={<FolderPlus className="h-4 w-4" />} tone="violet" hint={`${projects.filter((p) => p.kind === "network").length} Netzwerke`} />
-        <StatCard label="Server" value={servers.length} icon={<ServerIcon className="h-4 w-4" />} tone="blue" hint="in allen Projekten" />
-        <StatCard label="Laufen gerade" value={running} icon={<Play className="h-4 w-4" />} tone={running > 0 ? "green" : "neutral"} hint={`von ${servers.length}`} />
-        <StatCard
-          label="Nodes online"
-          value={nodes ? `${online}/${nodes.length}` : "–"}
-          icon={<Cpu className="h-4 w-4" />}
-          tone={nodes && online < nodes.length ? "red" : "amber"}
-          hint={nodes?.length === 0 ? "Noch kein Node eingerichtet" : "Maschinen mit Docker"}
-        />
-      </div>
-
-      <div className="mt-8">
+      <div className="mt-2">
         {projects.length === 0 ? (
           <Card>
             <EmptyState
               icon={<FolderPlus className="h-6 w-6" />}
               title="Noch kein Projekt"
-              text={nodes && nodes.length === 0 ? "Richte zuerst unter „Nodes“ eine Maschine ein, dann lege hier ein Projekt an." : "Lege dein erstes Projekt an: ein einzelner Server oder ein Netzwerk mit Velocity."}
+              text="Lege dein erstes Projekt an: ein einzelner Server oder ein Netzwerk mit Velocity."
             />
             <div className="flex justify-center pb-10">
               <Button variant="primary" onClick={() => setCreating(true)}>

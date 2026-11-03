@@ -24,7 +24,7 @@ import { roleLabel, roleRank, type Member, type Metrics, type Project, type Rang
 
 export default function ProjectPage() {
   return (
-    <Suspense fallback={<Loading />}>
+    <Suspense fallback={null}>
       <ProjectView />
     </Suspense>
   );

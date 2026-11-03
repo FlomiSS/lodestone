@@ -2,12 +2,11 @@
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Archive, BarChart3, ChevronLeft, FolderOpen, Puzzle, Settings, Terminal, Users, type LucideIcon } from "lucide-react";
+import { Archive, BarChart3, FolderOpen, Puzzle, Settings, Terminal, Users, type LucideIcon } from "lucide-react";
 import { Suspense } from "react";
-import { Badge, Meter, cx, loadTone } from "@/components/ui/primitives";
+import { cx } from "@/components/ui/primitives";
 import { ErrorState, Loading } from "@/components/ui/async";
 import { PowerButtons, StateBadge } from "@/components/status";
-import { SecondarySidebar } from "@/components/layout/shell";
 import { AddonsTab } from "@/components/server/addons";
 import { BackupsTab } from "@/components/server/backups";
 import { ConsoleTab } from "@/components/server/console";
@@ -22,7 +21,7 @@ import { roleRank, type Project, type Role, type Server } from "@/lib/types";
 
 export default function ServerPage() {
   return (
-    <Suspense fallback={<Loading />}>
+    <Suspense fallback={null}>
       <ServerView />
     </Suspense>
   );
@@ -85,66 +84,25 @@ function ServerView() {
     ...(rank >= roleRank.admin ? [{ id: "settings" as const, label: "Einstellungen", icon: Settings }] : []),
   ];
   const active = entries.some((entry) => entry.id === routeTab) ? routeTab : "console";
-  const stats = view?.stats;
-  const memoryPercent = stats && stats.memoryLimit > 0 ? (stats.memoryBytes / stats.memoryLimit) * 100 : 0;
 
   return (
     <>
-      <SecondarySidebar>
-        <div className="flex flex-col gap-4 p-4 lg:min-h-full lg:p-5">
-          <Link href={`/project/${server.projectId}/`} className="inline-flex items-center gap-1 text-xs text-muted transition hover:text-ink">
-            <ChevronLeft className="h-3.5 w-3.5" />
-            {project?.name ?? "Projekt"}
-          </Link>
-
-          <div>
-            <p className="truncate text-[15px] font-semibold tracking-tight">{server.name}</p>
-            <p className="mt-0.5 truncate text-xs text-muted">
-              {server.software} {view?.version}
-            </p>
-            <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-              <StateBadge server={server} />
-              {server.role === "proxy" && <Badge tone="accent">Proxy</Badge>}
-              {server.role === "backend" && <Badge>Backend</Badge>}
-            </div>
-          </div>
-
-          <nav className="flex gap-1 overflow-x-auto lg:flex-col lg:overflow-visible">
-            {entries.map((entry) => (
-              <button
-                key={entry.id}
-                onClick={() => setTab(entry.id)}
-                className={cx(
-                  "flex shrink-0 items-center gap-3 whitespace-nowrap rounded-lg border px-3 py-2 text-left text-[13px] transition duration-100 active:scale-[0.97]",
-                  active === entry.id ? "border-white/[0.07] bg-white/[0.07] text-ink" : "border-transparent text-muted hover:bg-white/[0.04] hover:text-ink",
-                )}
-              >
-                <entry.icon className={cx("h-4 w-4 shrink-0", active === entry.id ? "text-ink" : "text-muted")} />
-                {entry.label}
-              </button>
-            ))}
-          </nav>
-
-          {state === "running" && stats && (
-            <div className="mt-auto hidden space-y-3 rounded-lg border border-white/[0.06] bg-white/[0.02] p-3 lg:block">
-              <div>
-                <div className="mb-1.5 flex justify-between text-[11px] text-muted">
-                  <span>CPU</span>
-                  <span className="tabular-nums text-ink/80">{stats.cpuPercent.toFixed(0)} %</span>
-                </div>
-                <Meter value={stats.cpuPercent} max={100} tone={loadTone(stats.cpuPercent)} />
-              </div>
-              <div>
-                <div className="mb-1.5 flex justify-between text-[11px] text-muted">
-                  <span>Speicher</span>
-                  <span className="tabular-nums text-ink/80">{Math.round(stats.memoryBytes / 1024 ** 2)} MB</span>
-                </div>
-                <Meter value={memoryPercent} max={100} tone={loadTone(memoryPercent)} />
-              </div>
-            </div>
-          )}
-        </div>
-      </SecondarySidebar>
+      {/* Auf Mobilgeräten Reiterleiste oben anzeigen */}
+      <div className="mb-5 flex gap-1 overflow-x-auto pb-2 border-b border-white/[0.06] lg:hidden">
+        {entries.map((entry) => (
+          <button
+            key={entry.id}
+            onClick={() => setTab(entry.id)}
+            className={cx(
+              "flex shrink-0 items-center gap-2 whitespace-nowrap rounded-lg border px-3 py-1.5 text-left text-[12.5px] transition duration-100 active:scale-[0.97]",
+              active === entry.id ? "border-white/[0.07] bg-white/[0.07] text-ink font-medium" : "border-transparent text-muted hover:bg-white/[0.04] hover:text-ink",
+            )}
+          >
+            <entry.icon className={cx("h-3.5 w-3.5 shrink-0", active === entry.id ? "text-ink" : "text-muted")} />
+            {entry.label}
+          </button>
+        ))}
+      </div>
 
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div className="min-w-0">

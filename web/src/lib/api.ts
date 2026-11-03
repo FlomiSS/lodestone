@@ -113,6 +113,7 @@ export function useApi<T>(path: string | null, config?: SWRConfiguration<T, ApiE
   return useSWR<T, ApiError>(path, (key: string) => api.get<T>(key), {
     revalidateOnFocus: false,
     shouldRetryOnError: false,
+    keepPreviousData: true,
     ...config,
   });
 }

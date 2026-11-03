@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ArrowUpCircle, Cpu, FolderKanban, LayoutDashboard, Network, Search, Server, ShieldCheck, UserCog, Users, ScrollText, type LucideIcon } from "lucide-react";
+import { ArrowUpCircle, Cpu, FolderKanban, Network, Search, Server, ShieldCheck, UserCog, Users, ScrollText, type LucideIcon } from "lucide-react";
 import { cx } from "@/components/ui/primitives";
 import type { Project, User } from "@/lib/types";
 
@@ -23,7 +23,7 @@ export function CommandPalette({ projects, user, open, onClose }: { projects: Pr
   const input = useRef<HTMLInputElement>(null);
 
   const entries = useMemo<Entry[]>(() => {
-    const list: Entry[] = [{ key: "home", label: "Übersicht", hint: "Seite", href: "/", icon: LayoutDashboard }];
+    const list: Entry[] = [{ key: "home", label: "Projekte", hint: "Seite", href: "/", icon: FolderKanban }];
     for (const project of projects ?? []) {
       list.push({ key: `p-${project.id}`, label: project.name, hint: project.kind === "network" ? "Netzwerk" : "Projekt", href: `/project/${project.id}/`, icon: project.kind === "network" ? Network : Server });
       for (const server of project.servers) {
